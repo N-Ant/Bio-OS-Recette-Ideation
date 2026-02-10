@@ -13,6 +13,7 @@ interface GraphRow {
   isHead: boolean;
   isFork: boolean;
   forkFromCol: number | null; // column of parent branch if this is the first commit on a fork
+  forkFromRowIdx: number | null; // row index of the fork-point commit on the parent branch
   isFirstOnBranch: boolean;
   isLastOnBranch: boolean;
 }
@@ -102,6 +103,7 @@ export default function VersionHistoryPanel() {
           isHead: commit.id === branch.headCommitId,
           isFork: false, // will set below
           forkFromCol,
+          forkFromRowIdx: null, // will set after sort
           isFirstOnBranch,
           isLastOnBranch,
         });
@@ -119,6 +121,24 @@ export default function VersionHistoryPanel() {
 
     // Sort by timestamp descending (newest first)
     allRows.sort((a, b) => b.commit.timestamp - a.commit.timestamp);
+
+    // Resolve forkFromRowIdx: find the row index of the fork-point commit for each forked branch
+    const forkCommitIdMap = new Map<string, string>(); // branchId -> forkCommitId
+    for (const branch of sorted) {
+      if (branch.forkCommitId && branch.parentBranchId) {
+        forkCommitIdMap.set(branch.id, branch.forkCommitId);
+      }
+    }
+    for (let i = 0; i < allRows.length; i++) {
+      const row = allRows[i];
+      if (row.forkFromCol !== null) {
+        const forkCommitId = forkCommitIdMap.get(row.branch.id);
+        if (forkCommitId) {
+          const forkRowIdx = allRows.findIndex(r => r.commit.id === forkCommitId);
+          if (forkRowIdx !== -1) row.forkFromRowIdx = forkRowIdx;
+        }
+      }
+    }
 
     // --- Build branch spans using ROW INDICES ---
     const spans: BranchSpan[] = [];
@@ -147,21 +167,7 @@ export default function VersionHistoryPanel() {
       spanMap.set(branch.id, span);
     }
 
-    // Extend parent branch spans to cover child fork rows so the vertical line connects
-    for (const branch of sorted) {
-      if (!branch.parentBranchId || !branch.forkCommitId) continue;
-      const parentSpan = spanMap.get(branch.parentBranchId);
-      const childSpan = spanMap.get(branch.id);
-      if (parentSpan && childSpan) {
-        // Extend parent line to cover the child's entire range
-        if (childSpan.firstRowIdx < parentSpan.firstRowIdx) {
-          parentSpan.firstRowIdx = childSpan.firstRowIdx;
-        }
-        if (childSpan.lastRowIdx > parentSpan.lastRowIdx) {
-          parentSpan.lastRowIdx = childSpan.lastRowIdx;
-        }
-      }
-    }
+    // No longer extend parent spans – fork curves now handle the visual connection
 
     return { rows: allRows, totalCols: sorted.length, branchSpans: spans };
   }, [branches, activeBranch?.id, getCommitsForBranch]);
@@ -228,9 +234,8 @@ export default function VersionHistoryPanel() {
         color: span.color,
         isActive: span.isActive,
         isSelf: span.branchId === rowBranchId,
-        // Only clip at the branch's ACTUAL first/last rows, not extended ones
-        clipTop: rowIdx === span.actualFirstRowIdx,
-        clipBottom: rowIdx === span.actualLastRowIdx,
+        clipTop: rowIdx === span.firstRowIdx,
+        clipBottom: rowIdx === span.lastRowIdx,
       });
     }
     return lines;
@@ -327,7 +332,7 @@ export default function VersionHistoryPanel() {
                   {/* Graph column - stretches to full row height */}
                   <div
                     className="flex-shrink-0 relative self-stretch"
-                    style={{ width: GRAPH_W }}
+                    style={{ width: GRAPH_W, overflow: 'visible' }}
                   >
                     {/* Vertical lines for branches passing through this row */}
                     {visibleLines.map(vl => {
@@ -348,27 +353,29 @@ export default function VersionHistoryPanel() {
                       );
                     })}
 
-                    {/* Fork line: curve from parent branch (below) to this node */}
-                    {row.forkFromCol !== null && (
-                      <svg
-                        className="absolute inset-0 pointer-events-none"
-                        width="100%"
-                        height="100%"
-                        preserveAspectRatio="none"
-                        viewBox={`0 0 ${GRAPH_W} 100`}
-                        style={{ overflow: 'visible' }}
-                      >
-                        <path
-                          d={`M ${12 + row.forkFromCol * LANE_W} 100 C ${12 + row.forkFromCol * LANE_W} 60, ${nodeX} 80, ${nodeX} 50`}
-                          fill="none"
-                          stroke={branch.color}
-                          strokeWidth={2}
-                          strokeDasharray="4 3"
-                          opacity={0.55}
-                          vectorEffect="non-scaling-stroke"
-                        />
-                      </svg>
-                    )}
+                    {/* Fork line: curve from fork-point commit (below) to this node */}
+                    {row.forkFromCol !== null && row.forkFromRowIdx !== null && (() => {
+                      const parentX = 12 + row.forkFromCol * LANE_W;
+                      // Distance in rows from this row down to the fork-point row
+                      const rowSpan = row.forkFromRowIdx - idx;
+                      // Height in pixels that the SVG needs to cover (from center of this row to center of fork row)
+                      const svgH = rowSpan * ROW_H;
+                      return (
+                        <svg
+                          className="absolute pointer-events-none"
+                          style={{ left: 0, top: '50%', width: GRAPH_W, height: svgH, overflow: 'visible' }}
+                        >
+                          <path
+                            d={`M ${nodeX} 0 C ${nodeX} ${svgH * 0.35}, ${parentX} ${svgH * 0.65}, ${parentX} ${svgH}`}
+                            fill="none"
+                            stroke={branch.color}
+                            strokeWidth={2}
+                            strokeDasharray="4 3"
+                            opacity={0.55}
+                          />
+                        </svg>
+                      );
+                    })()}
 
                     {/* Node circle */}
                     {(() => {
