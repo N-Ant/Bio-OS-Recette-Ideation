@@ -1,13 +1,22 @@
 import { useState, useEffect } from 'react';
-import { X, Save, AlertCircle, Info, Sparkles, ChevronLeft, ArrowLeftRight } from 'lucide-react';
+import { X, Save, AlertCircle, Info, Sparkles, ChevronLeft, ArrowLeftRight, Tag, Plus, GitBranch } from 'lucide-react';
 import { useStore } from '../../store';
 import { useVersioningStore } from '../../versioning/store';
 import { computeRecipeDiff, generateCommitMessage } from '../../versioning/diff';
 import { DiffSummary, RecipeDiff } from '../../versioning/types';
 import DiffOperationSection from './DiffOperationSection';
 
+const PREDEFINED_TAGS = [
+  { label: 'SOP', color: '#3B82F6', description: 'Procedure standard' },
+  { label: 'QA-approved', color: '#10B981', description: 'Valide QA' },
+  { label: 'En test', color: '#F59E0B', description: 'En cours de validation' },
+  { label: 'Draft', color: '#6B7280', description: 'Brouillon' },
+  { label: 'Production', color: '#8B5CF6', description: 'Pret pour production' },
+  { label: 'Archive', color: '#EF4444', description: 'Version archivee' },
+];
+
 export default function CommitDialog() {
-  const { isCommitDialogOpen, setCommitDialogOpen, createCommit, getLatestCommit, preferredAuthor, setPreferredAuthor, restoredFromCommitId, getCommitNumber, getActiveBranch } = useVersioningStore();
+  const { isCommitDialogOpen, setCommitDialogOpen, createCommit, createBranch, getLatestCommit, preferredAuthor, setPreferredAuthor, restoredFromCommitId, getCommitNumber, getActiveBranch } = useVersioningStore();
   const getCurrentRecipe = useStore(s => s.getCurrentRecipe);
 
   const [message, setMessage] = useState('');
@@ -15,6 +24,11 @@ export default function CommitDialog() {
   const [summary, setSummary] = useState<DiffSummary | null>(null);
   const [fullDiff, setFullDiff] = useState<RecipeDiff | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [customTagInput, setCustomTagInput] = useState('');
+  const [showTagPicker, setShowTagPicker] = useState(false);
+  const [saveAsNewBranch, setSaveAsNewBranch] = useState(false);
+  const [newBranchName, setNewBranchName] = useState('');
 
   const recipe = getCurrentRecipe();
 
@@ -23,6 +37,11 @@ export default function CommitDialog() {
     setAuthor(preferredAuthor || '');
     setMessage('');
     setShowDetails(false);
+    setSelectedTags([]);
+    setCustomTagInput('');
+    setShowTagPicker(false);
+    setSaveAsNewBranch(false);
+    setNewBranchName('');
 
     // Compute diff against latest commit
     const latest = getLatestCommit(recipe.id);
@@ -48,9 +67,25 @@ export default function CommitDialog() {
 
   const handleSave = () => {
     if (!message.trim()) return;
-    createCommit(recipe.id, recipe, message.trim(), author.trim() || 'Anonyme');
+    if (saveAsNewBranch && newBranchName.trim()) {
+      // Create branch first, then commit on the new branch
+      createBranch(recipe.id, newBranchName.trim());
+    }
+    createCommit(recipe.id, recipe, message.trim(), author.trim() || 'Anonyme', selectedTags);
     if (author.trim()) setPreferredAuthor(author.trim());
     setCommitDialogOpen(false);
+  };
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  };
+
+  const addCustomTag = () => {
+    const t = customTagInput.trim();
+    if (t && !selectedTags.includes(t)) {
+      setSelectedTags(prev => [...prev, t]);
+    }
+    setCustomTagInput('');
   };
 
   // Check if committing from a restored (non-HEAD) commit
@@ -236,22 +271,132 @@ export default function CommitDialog() {
               className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400"
             />
           </div>
+
+          {/* Tags */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                <Tag size={14} className="text-purple-500" />
+                Labels
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowTagPicker(!showTagPicker)}
+                className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+              >
+                {showTagPicker ? 'Masquer' : 'Ajouter'}
+              </button>
+            </div>
+
+            {/* Selected tags */}
+            {selectedTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {selectedTags.map(tag => {
+                  const preset = PREDEFINED_TAGS.find(p => p.label === tag);
+                  return (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-70"
+                      style={{
+                        backgroundColor: (preset?.color || '#8B5CF6') + '18',
+                        color: preset?.color || '#8B5CF6',
+                      }}
+                      onClick={() => toggleTag(tag)}
+                      title="Cliquer pour retirer"
+                    >
+                      <Tag size={9} />
+                      {tag}
+                      <X size={10} className="ml-0.5" />
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Tag picker */}
+            {showTagPicker && (
+              <div className="border border-gray-200 rounded-lg p-2.5 space-y-2 bg-gray-50">
+                <div className="flex flex-wrap gap-1.5">
+                  {PREDEFINED_TAGS.map(pt => {
+                    const isActive = selectedTags.includes(pt.label);
+                    return (
+                      <button
+                        key={pt.label}
+                        type="button"
+                        onClick={() => toggleTag(pt.label)}
+                        className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-medium transition-all ${isActive ? 'ring-2 ring-offset-1' : 'opacity-60 hover:opacity-100'}`}
+                        style={{
+                          backgroundColor: pt.color + (isActive ? '25' : '12'),
+                          color: pt.color,
+                          ringColor: isActive ? pt.color : undefined,
+                        }}
+                        title={pt.description}
+                      >
+                        <Tag size={9} />
+                        {pt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-1.5">
+                  <input
+                    value={customTagInput}
+                    onChange={e => setCustomTagInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addCustomTag())}
+                    placeholder="Label personnalise..."
+                    className="flex-1 text-xs border rounded px-2 py-1 bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={addCustomTag}
+                    disabled={!customTagInput.trim()}
+                    className="px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 disabled:opacity-40 flex items-center gap-1"
+                  >
+                    <Plus size={10} /> Ajouter
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Save as new branch toggle */}
+          <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={saveAsNewBranch}
+                onChange={e => setSaveAsNewBranch(e.target.checked)}
+                className="rounded border-gray-300 text-green-500 focus:ring-green-400"
+              />
+              <GitBranch size={14} className="text-green-600" />
+              <span className="text-sm text-gray-700">Sauvegarder comme nouvelle variante</span>
+            </label>
+            {saveAsNewBranch && (
+              <input
+                value={newBranchName}
+                onChange={e => setNewBranchName(e.target.value)}
+                placeholder="Nom de la variante..."
+                className="w-full mt-2 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-300 focus:border-green-400"
+                autoFocus
+              />
+            )}
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 px-6 py-4 border-t bg-gray-50">
           <button onClick={() => setCommitDialogOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Annuler</button>
           <button
             onClick={handleSave}
-            disabled={!message.trim()}
-            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${message.trim() ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+            disabled={!message.trim() || (saveAsNewBranch && !newBranchName.trim())}
+            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${message.trim() && (!saveAsNewBranch || newBranchName.trim()) ? (saveAsNewBranch ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-blue-500 text-white hover:bg-blue-600') : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
           >
-            <Save size={16} />
-            Sauvegarder v{(() => {
+            {saveAsNewBranch ? <GitBranch size={16} /> : <Save size={16} />}
+            {saveAsNewBranch ? `Creer variante "${newBranchName || '...'}"` : <>Sauvegarder v{(() => {
               const latest = getLatestCommit(recipe.id);
               if (!latest) return '1.0';
               const branchCommits = useVersioningStore.getState().getCommitsForBranch(latest.branchId);
               return `1.${branchCommits.length}`;
-            })()}
+            })()}</>}
           </button>
         </div>
       </div>

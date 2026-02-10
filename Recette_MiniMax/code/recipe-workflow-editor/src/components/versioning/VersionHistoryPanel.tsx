@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { X, GitCommit, ArrowLeftRight, RotateCcw, Save, Tag, GitBranch, Download, GitMerge } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { X, GitCommit, ArrowLeftRight, RotateCcw, Save, Tag, GitBranch, Download, GitMerge, Plus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useStore } from '../../store';
@@ -38,7 +38,11 @@ export default function VersionHistoryPanel() {
     selectedCommitId, setSelectedCommitId,
     getCommitsForBranch, getBranchesForRecipe, getActiveBranch, getCommitNumber,
     switchBranch, restoredFromCommitId, getCommitSnapshot, setMergeDialogOpen,
+    addTag, removeTag,
   } = useVersioningStore();
+
+  const [tagInputCommitId, setTagInputCommitId] = useState<string | null>(null);
+  const [tagInputValue, setTagInputValue] = useState('');
 
   const selectedRecipeId = useStore(s => s.selectedRecipeId);
   const replaceRecipe = useStore(s => s.replaceRecipe);
@@ -456,13 +460,57 @@ export default function VersionHistoryPanel() {
                     </div>
 
                     {/* Tags */}
-                    {commit.tags.length > 0 && (
-                      <div className="flex gap-1 mt-1.5">
+                    {(commit.tags.length > 0 || isSelected) && (
+                      <div className="flex flex-wrap gap-1 mt-1.5 items-center">
                         {commit.tags.map(tag => (
-                          <span key={tag} className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded-full">
+                          <span
+                            key={tag}
+                            className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded-full ${isSelected ? 'cursor-pointer hover:bg-purple-100' : ''}`}
+                            onClick={isSelected ? (e) => { e.stopPropagation(); removeTag(commit.id, tag); } : undefined}
+                            title={isSelected ? 'Cliquer pour retirer' : undefined}
+                          >
                             <Tag size={8} />{tag}
+                            {isSelected && <X size={8} className="ml-0.5 opacity-50" />}
                           </span>
                         ))}
+                        {isSelected && (
+                          tagInputCommitId === commit.id ? (
+                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                              <input
+                                value={tagInputValue}
+                                onChange={e => setTagInputValue(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' && tagInputValue.trim()) {
+                                    addTag(commit.id, tagInputValue.trim());
+                                    setTagInputValue('');
+                                    setTagInputCommitId(null);
+                                  }
+                                  if (e.key === 'Escape') setTagInputCommitId(null);
+                                }}
+                                placeholder="Label..."
+                                className="w-20 text-[10px] border rounded px-1.5 py-0.5 focus:ring-1 focus:ring-purple-300"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => {
+                                  if (tagInputValue.trim()) {
+                                    addTag(commit.id, tagInputValue.trim());
+                                    setTagInputValue('');
+                                  }
+                                  setTagInputCommitId(null);
+                                }}
+                                className="text-[10px] text-purple-600 hover:text-purple-700 font-medium"
+                              >OK</button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={e => { e.stopPropagation(); setTagInputCommitId(commit.id); setTagInputValue(''); }}
+                              className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 border border-dashed border-purple-300 text-purple-400 rounded-full hover:bg-purple-50 hover:text-purple-600"
+                            >
+                              <Plus size={8} />
+                            </button>
+                          )
+                        )}
                       </div>
                     )}
 
