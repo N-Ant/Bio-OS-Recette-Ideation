@@ -79,11 +79,12 @@ export function useVersioningInit() {
   const seeded = useRef(false);
 
   useEffect(() => {
-    // One-time seed: if versioning store is empty OR doesn't know about seeded recipes
-    const hasSeededRecipes = commits.some(c => c.recipeId === 'cho-fb');
-    if (!seeded.current && !hasSeededRecipes) {
+    // One-time seed: if versioning store is empty OR missing any seeded recipe
+    const seed = generateSeedData();
+    const seedRecipeIds = seed.recipes.map(r => r.id);
+    const hasMissingSeedRecipe = seedRecipeIds.some(id => !commits.some(c => c.recipeId === id));
+    if (!seeded.current && hasMissingSeedRecipe) {
       seeded.current = true;
-      const seed = generateSeedData();
 
       // Replace recipes in main store with seeded ones (keep existing user recipes too)
       const existingIds = new Set(seed.recipes.map(r => r.id));

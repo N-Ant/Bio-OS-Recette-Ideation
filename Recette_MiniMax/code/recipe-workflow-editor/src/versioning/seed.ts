@@ -345,6 +345,167 @@ su200.operations[1].blocks[2].subtitle = 'T=37C, pH=7, agit=120rpm';
 (su200.operations[1].blocks[3].config as any).actuators[0].points = [{ x: 0, y: 80 }, { x: 50, y: 250 }];
 
 // ========================================
+// Recipe 6: mAb-Perfusion-200L (COMPLEX: 8 branches, merges, deep history)
+// ========================================
+const mabV1: Recipe = {
+  id: 'mab-perf', name: 'mAb-Perfusion-200L',
+  orientation: 'vertical',
+  operations: [
+    {
+      id: 'mab-op1', number: 1, name: 'Preparation & Inoculation',
+      blocks: [
+        { id: 'mab-b1', type: 'start', label: 'Debut', x: 300, y: 20 },
+        { id: 'mab-b2', type: 'parameter', label: 'Consignes initiales', subtitle: 'T=37C, pH=7.0, DO=40%', x: 280, y: 110, config: { setpoints: [{ variable: 'Temperature', value: '37', unit: 'C' }, { variable: 'pH', value: '7.0', unit: '' }, { variable: 'DO%', value: '40', unit: '%' }] } },
+        { id: 'mab-b3', type: 'instrument', label: 'Calibration sondes', subtitle: 'Calibration All Probes', x: 280, y: 210, config: { sequence: 'Calibration All Probes', forceRestart: true } },
+        { id: 'mab-b4', type: 'operator-prompt', label: 'Confirmer inoculation', x: 280, y: 310, config: { message: 'Inoculer le bioreacteur avec le train de semence?', options: ['Inoculer', 'Reporter'] } },
+        { id: 'mab-b5', type: 'wait', label: 'Adaptation 4h', subtitle: '4 heures', x: 280, y: 410, config: { duration: 4, unit: 'h' } },
+        { id: 'mab-b6', type: 'end', label: 'Fin Prep', x: 300, y: 510 },
+      ],
+      connections: [
+        { id: 'mab-c1', from: 'mab-b1', to: 'mab-b2' },
+        { id: 'mab-c2', from: 'mab-b2', to: 'mab-b3' },
+        { id: 'mab-c3', from: 'mab-b3', to: 'mab-b4' },
+        { id: 'mab-c4', from: 'mab-b4', to: 'mab-b5', branch: 'Inoculer' },
+        { id: 'mab-c5', from: 'mab-b5', to: 'mab-b6' },
+      ],
+    },
+    {
+      id: 'mab-op2', number: 2, name: 'Phase Batch',
+      blocks: [
+        { id: 'mab-b10', type: 'start', label: 'Debut Batch', x: 300, y: 20 },
+        { id: 'mab-b11', type: 'cascade', label: 'Regulation DO', subtitle: 'DO cascade', x: 250, y: 130, config: { masterVariable: 'DO%', setpoint: 40, deadband: 0.5, actuators: [{ id: 'ma1', name: 'STIRR_200L', variable: 'Agitation', unit: 'rpm', points: [{ x: 5, y: 100 }, { x: 50, y: 350 }], visible: true, color: '#3b82f6', min: 5, max: 50, xp: 200, ti: 120, td: 0, hysteresis: '05:00', mode: 'on' }, { id: 'ma2', name: 'AIR_200L', variable: 'Flow', unit: 'L/min', points: [{ x: 10, y: 5 }, { x: 60, y: 30 }], visible: true, color: '#22c55e', min: 10, max: 60, xp: 100, ti: 80, td: 0, hysteresis: '05:00', mode: 'on' }] } },
+        { id: 'mab-b12', type: 'condition', label: 'VCD > 2e6?', x: 290, y: 270, config: { expression: 'VCD', operator: '>', value: 2, useExpression: false } },
+        { id: 'mab-b13', type: 'end', label: 'Fin Batch', x: 300, y: 380 },
+      ],
+      connections: [
+        { id: 'mab-c10', from: 'mab-b10', to: 'mab-b11' },
+        { id: 'mab-c11', from: 'mab-b11', to: 'mab-b12', condition: { variable: 'ProcessTime', operator: '>', value: 72 } },
+        { id: 'mab-c12', from: 'mab-b12', to: 'mab-b13', branch: 'true' },
+      ],
+    },
+    {
+      id: 'mab-op3', number: 3, name: 'Perfusion Continue',
+      blocks: [
+        { id: 'mab-b20', type: 'start', label: 'Debut Perfusion', x: 300, y: 20 },
+        { id: 'mab-b21', type: 'parameter', label: 'Demarrer perfusion', subtitle: 'Perf=1VVD', x: 280, y: 120, config: { setpoints: [{ variable: 'Perfusion_Rate', value: '1', unit: 'VVD' }] } },
+        { id: 'mab-b22', type: 'profile', label: 'Rampe perfusion', subtitle: '1-2.5 VVD sur 5j', x: 280, y: 230, config: { points: [{ time: 0, value: 1 }, { time: 48, value: 1.5 }, { time: 96, value: 2 }, { time: 120, value: 2.5 }], variable: 'Perfusion_Rate', unit: 'VVD' } },
+        { id: 'mab-b23', type: 'wait', label: 'Steady state 14j', subtitle: '14 jours', x: 280, y: 340, config: { duration: 336, unit: 'h' } },
+        { id: 'mab-b24', type: 'end', label: 'Fin Perfusion', x: 300, y: 440 },
+      ],
+      connections: [
+        { id: 'mab-c20', from: 'mab-b20', to: 'mab-b21' },
+        { id: 'mab-c21', from: 'mab-b21', to: 'mab-b22' },
+        { id: 'mab-c22', from: 'mab-b22', to: 'mab-b23' },
+        { id: 'mab-c23', from: 'mab-b23', to: 'mab-b24', condition: { variable: 'Viability', operator: '>=', value: 90 } },
+      ],
+    },
+  ],
+  customVariables: [
+    { id: 'cv-mab1', name: 'CSPR', formula: 'Perfusion_Rate / VCD' },
+    { id: 'cv-mab2', name: 'Productivity', formula: 'mAbTiter * Perfusion_Rate' },
+  ],
+};
+
+// v2: pH 6.9, DO 50%
+const mabV2: Recipe = JSON.parse(JSON.stringify(mabV1));
+(mabV2.operations[0].blocks[1].config as any).setpoints[1].value = '6.9';
+(mabV2.operations[0].blocks[1].config as any).setpoints[2].value = '50';
+mabV2.operations[0].blocks[1].subtitle = 'T=37C, pH=6.9, DO=50%';
+
+// v3: VCD threshold 4e6, wait 6h
+const mabV3: Recipe = JSON.parse(JSON.stringify(mabV2));
+(mabV3.operations[1].blocks[2].config as any).value = 4;
+mabV3.operations[1].blocks[2].label = 'VCD > 4e6?';
+(mabV3.operations[0].blocks[4].config as any).duration = 6;
+mabV3.operations[0].blocks[4].subtitle = '6 heures';
+
+// v4: perfusion ramp adjusted
+const mabV4: Recipe = JSON.parse(JSON.stringify(mabV3));
+(mabV4.operations[2].blocks[2].config as any).points = [{ time: 0, value: 0.8 }, { time: 24, value: 1.2 }, { time: 72, value: 1.8 }, { time: 120, value: 2.2 }];
+mabV4.operations[2].blocks[2].subtitle = '0.8-2.2 VVD sur 5j';
+
+// v5: merge from "Low pH" - pH 6.8, everything else from v4
+const mabV5: Recipe = JSON.parse(JSON.stringify(mabV4));
+(mabV5.operations[0].blocks[1].config as any).setpoints[1].value = '6.8';
+mabV5.operations[0].blocks[1].subtitle = 'T=37C, pH=6.8, DO=50%';
+
+// v6: add bleed step in perfusion
+const mabV6: Recipe = JSON.parse(JSON.stringify(mabV5));
+mabV6.operations[2].blocks.splice(3, 0, {
+  id: 'mab-b25', type: 'parameter', label: 'Cell Bleed', subtitle: 'Bleed=10%/j', x: 280, y: 390, config: { setpoints: [{ variable: 'Bleed_Rate', value: '10', unit: '%/day' }] },
+});
+mabV6.operations[2].connections.splice(2, 0, { id: 'mab-c24', from: 'mab-b23', to: 'mab-b25' });
+mabV6.operations[2].connections[3] = { id: 'mab-c23b', from: 'mab-b25', to: 'mab-b24', condition: { variable: 'Viability', operator: '>=', value: 90 } };
+
+// v7: steady state 21 days
+const mabV7: Recipe = JSON.parse(JSON.stringify(mabV6));
+(mabV7.operations[2].blocks[3].config as any).duration = 504;
+mabV7.operations[2].blocks[3].subtitle = '21 jours';
+mabV7.operations[2].blocks[3].label = 'Steady state 21j';
+
+// v8: agitation maxed
+const mabV8: Recipe = JSON.parse(JSON.stringify(mabV7));
+(mabV8.operations[1].blocks[1].config as any).actuators[0].points = [{ x: 5, y: 120 }, { x: 30, y: 280 }, { x: 50, y: 400 }];
+
+// Branch "Haute Productivite" from v2: higher perfusion, higher DO
+const mabHP: Recipe = JSON.parse(JSON.stringify(mabV2));
+(mabHP.operations[1].blocks[1].config as any).setpoint = 60;
+(mabHP.operations[2].blocks[1].config as any).setpoints[0].value = '1.5';
+mabHP.operations[2].blocks[1].subtitle = 'Perf=1.5VVD';
+
+const mabHP2: Recipe = JSON.parse(JSON.stringify(mabHP));
+(mabHP2.operations[2].blocks[2].config as any).points = [{ time: 0, value: 1.5 }, { time: 48, value: 2.5 }, { time: 96, value: 3.5 }];
+mabHP2.operations[2].blocks[2].subtitle = '1.5-3.5 VVD sur 4j';
+
+const mabHP3: Recipe = JSON.parse(JSON.stringify(mabHP2));
+(mabHP3.operations[1].blocks[1].config as any).actuators.push({
+  id: 'ma3', name: 'O2EN_200L', variable: 'O2', unit: '%',
+  points: [{ x: 50, y: 0 }, { x: 100, y: 100 }],
+  visible: true, color: '#f97316', min: 50, max: 100, xp: 5, ti: 300, td: 0, hysteresis: '05:00', mode: 'on'
+});
+
+// Branch "Low pH" from v3
+const mabLowPH: Recipe = JSON.parse(JSON.stringify(mabV3));
+(mabLowPH.operations[0].blocks[1].config as any).setpoints[1].value = '6.8';
+mabLowPH.operations[0].blocks[1].subtitle = 'T=37C, pH=6.8, DO=50%';
+
+const mabLowPH2: Recipe = JSON.parse(JSON.stringify(mabLowPH));
+(mabLowPH2.operations[0].blocks[4].config as any).duration = 8;
+mabLowPH2.operations[0].blocks[4].subtitle = '8 heures';
+
+// Branch "O2 Enrichi" from v4
+const mabO2: Recipe = JSON.parse(JSON.stringify(mabV4));
+(mabO2.operations[1].blocks[1].config as any).actuators.push({
+  id: 'ma4', name: 'O2_PURE', variable: 'O2', unit: '%',
+  points: [{ x: 40, y: 0 }, { x: 80, y: 100 }],
+  visible: true, color: '#ef4444', min: 40, max: 80, xp: 10, ti: 200, td: 0, hysteresis: '03:00', mode: 'on'
+});
+
+const mabO2v2: Recipe = JSON.parse(JSON.stringify(mabO2));
+(mabO2v2.operations[1].blocks[1].config as any).setpoint = 55;
+
+// Branch "Feed Continu" from v5
+const mabFeed: Recipe = JSON.parse(JSON.stringify(mabV5));
+mabFeed.operations[2].blocks[1].label = 'Feed glucose continu';
+(mabFeed.operations[2].blocks[1].config as any).setpoints = [{ variable: 'Perfusion_Rate', value: '1.5', unit: 'VVD' }, { variable: 'Glucose_Feed', value: '4', unit: 'g/L/j' }];
+mabFeed.operations[2].blocks[1].subtitle = 'Perf=1.5VVD, Gluc=4g/L/j';
+
+// Branch "Temp Shift" from HP branch commit 2 (branch from branch!)
+const mabTempShift: Recipe = JSON.parse(JSON.stringify(mabHP2));
+mabTempShift.operations[0].blocks.splice(4, 0, {
+  id: 'mab-ts1', type: 'profile', label: 'Shift T 37->33C', subtitle: 'Rampe 37-33C sur 12h', x: 280, y: 360, config: { points: [{ time: 0, value: 37 }, { time: 12, value: 33 }], variable: 'Temperature', unit: 'C' },
+});
+
+// Branch "Scale 2000L" from v6
+const mab2000L: Recipe = JSON.parse(JSON.stringify(mabV6));
+mab2000L.name = 'mAb-Perfusion-200L';
+(mab2000L.operations[1].blocks[1].config as any).actuators[0].points = [{ x: 5, y: 60 }, { x: 50, y: 200 }];
+(mab2000L.operations[1].blocks[1].config as any).actuators[1].points = [{ x: 10, y: 20 }, { x: 60, y: 150 }];
+
+// Branch "GMP Validation" from v7
+const mabGMP: Recipe = JSON.parse(JSON.stringify(mabV7));
+
+// ========================================
 // BUILD SEED DATA
 // ========================================
 
@@ -356,7 +517,7 @@ interface SeedData {
 }
 
 export function generateSeedData(): SeedData {
-  const recipes: Recipe[] = [choV5, ecoliV3, pichiaV2, cipV2, su50V3];
+  const recipes: Recipe[] = [mabV8, choV5, ecoliV3, pichiaV2, cipV2, su50V3];
   const commits: RecipeCommit[] = [];
   const branches: RecipeBranch[] = [];
   const activeBranchIds: Record<string, string> = {};
@@ -444,6 +605,70 @@ export function generateSeedData(): SeedData {
   const su200BrId = mkBranch('su50', 'Scale 200L', suC2, suMainId, suC2, hoursAgo(20), 4);
   const su200C1 = mkCommit('su50', su200BrId, suC2, su200, 'Adaptation pour cuve 200L: agitation 120rpm, volumes adaptes', 'Sophie M.', hoursAgo(15));
   branches.find(b => b.id === su200BrId)!.headCommitId = su200C1;
+
+  // --- mAb-Perfusion-200L: 8 versions on Principal, 7 feature branches, 1 merge ---
+  // Main branch: 8 commits
+  const mabMainId = mkBranch('mab-perf', 'Principal', null, null, null, hoursAgo(200), 0);
+  const mC1 = mkCommit('mab-perf', mabMainId, null, mabV1, 'Version initiale mAb Perfusion 200L', 'Marie L.', hoursAgo(192), ['initial']);
+  branches.find(b => b.id === mabMainId)!.headCommitId = mC1;
+  const mC2 = mkCommit('mab-perf', mabMainId, mC1, mabV2, 'Ajustement pH 6.9, DO 50%', 'Marie L.', hoursAgo(170));
+  branches.find(b => b.id === mabMainId)!.headCommitId = mC2;
+  const mC3 = mkCommit('mab-perf', mabMainId, mC2, mabV3, 'Seuil VCD 4e6, adaptation 6h', 'Pierre D.', hoursAgo(150));
+  branches.find(b => b.id === mabMainId)!.headCommitId = mC3;
+  const mC4 = mkCommit('mab-perf', mabMainId, mC3, mabV4, 'Ajustement rampe perfusion 0.8-2.2 VVD', 'Sophie M.', hoursAgo(120));
+  branches.find(b => b.id === mabMainId)!.headCommitId = mC4;
+  const mC5 = mkCommit('mab-perf', mabMainId, mC4, mabV5, 'Fusion de la variante "Low pH"', 'Marie L.', hoursAgo(90), ['merge']);
+  branches.find(b => b.id === mabMainId)!.headCommitId = mC5;
+  const mC6 = mkCommit('mab-perf', mabMainId, mC5, mabV6, 'Ajout cell bleed 10%/j en perfusion', 'Ahmed K.', hoursAgo(65));
+  branches.find(b => b.id === mabMainId)!.headCommitId = mC6;
+  const mC7 = mkCommit('mab-perf', mabMainId, mC6, mabV7, 'Steady state prolonge a 21 jours', 'Pierre D.', hoursAgo(30), ['En test']);
+  branches.find(b => b.id === mabMainId)!.headCommitId = mC7;
+  const mC8 = mkCommit('mab-perf', mabMainId, mC7, mabV8, 'Agitation optimisee avec 3 points de consigne', 'Sophie M.', hoursAgo(5));
+  branches.find(b => b.id === mabMainId)!.headCommitId = mC8;
+  activeBranchIds['mab-perf'] = mabMainId;
+
+  // Branch 1: "Haute Productivite" from v2 - 3 commits
+  const mabHPBrId = mkBranch('mab-perf', 'Haute Productivite', mC2, mabMainId, mC2, hoursAgo(160), 1);
+  const mHPC1 = mkCommit('mab-perf', mabHPBrId, mC2, mabHP, 'Config haute productivite: DO 60%, perf 1.5VVD', 'Sophie M.', hoursAgo(155));
+  branches.find(b => b.id === mabHPBrId)!.headCommitId = mHPC1;
+  const mHPC2 = mkCommit('mab-perf', mabHPBrId, mHPC1, mabHP2, 'Rampe perfusion aggressive 1.5-3.5 VVD', 'Sophie M.', hoursAgo(140));
+  branches.find(b => b.id === mabHPBrId)!.headCommitId = mHPC2;
+  const mHPC3 = mkCommit('mab-perf', mabHPBrId, mHPC2, mabHP3, 'Ajout enrichissement O2 pur dans cascade', 'Sophie M.', hoursAgo(125));
+  branches.find(b => b.id === mabHPBrId)!.headCommitId = mHPC3;
+
+  // Branch 2: "Low pH (6.8)" from v3 - 2 commits (later merged into main at v5)
+  const mabLPBrId = mkBranch('mab-perf', 'Low pH (6.8)', mC3, mabMainId, mC3, hoursAgo(145), 2);
+  const mLPC1 = mkCommit('mab-perf', mabLPBrId, mC3, mabLowPH, 'Test pH bas 6.8 pour glycosylation optimale', 'Marie L.', hoursAgo(135));
+  branches.find(b => b.id === mabLPBrId)!.headCommitId = mLPC1;
+  const mLPC2 = mkCommit('mab-perf', mabLPBrId, mLPC1, mabLowPH2, 'Adaptation prolongee a 8h post-inoculation', 'Marie L.', hoursAgo(100));
+  branches.find(b => b.id === mabLPBrId)!.headCommitId = mLPC2;
+
+  // Branch 3: "O2 Enrichi" from v4 - 2 commits
+  const mabO2BrId = mkBranch('mab-perf', 'O2 Enrichi', mC4, mabMainId, mC4, hoursAgo(115), 3);
+  const mO2C1 = mkCommit('mab-perf', mabO2BrId, mC4, mabO2, 'Ajout sparger O2 pur dans cascade DO', 'Ahmed K.', hoursAgo(108));
+  branches.find(b => b.id === mabO2BrId)!.headCommitId = mO2C1;
+  const mO2C2 = mkCommit('mab-perf', mabO2BrId, mO2C1, mabO2v2, 'Consigne DO augmentee a 55%', 'Ahmed K.', hoursAgo(95));
+  branches.find(b => b.id === mabO2BrId)!.headCommitId = mO2C2;
+
+  // Branch 4: "Feed Continu" from v5 - 1 commit
+  const mabFeedBrId = mkBranch('mab-perf', 'Feed Continu', mC5, mabMainId, mC5, hoursAgo(85), 4);
+  const mFC1 = mkCommit('mab-perf', mabFeedBrId, mC5, mabFeed, 'Strategie feed glucose continu 4g/L/j', 'Julie R.', hoursAgo(75));
+  branches.find(b => b.id === mabFeedBrId)!.headCommitId = mFC1;
+
+  // Branch 5: "Temp Shift" forked from "Haute Productivite" commit 2 (branch from branch!)
+  const mabTSBrId = mkBranch('mab-perf', 'Temp Shift 33C', mHPC2, mabHPBrId, mHPC2, hoursAgo(130), 5);
+  const mTSC1 = mkCommit('mab-perf', mabTSBrId, mHPC2, mabTempShift, 'Temperature shift 37->33C pour productivite accrue', 'Julie R.', hoursAgo(118));
+  branches.find(b => b.id === mabTSBrId)!.headCommitId = mTSC1;
+
+  // Branch 6: "Scale 2000L" from v6
+  const mab2kBrId = mkBranch('mab-perf', 'Scale 2000L', mC6, mabMainId, mC6, hoursAgo(55), 6);
+  const m2kC1 = mkCommit('mab-perf', mab2kBrId, mC6, mab2000L, 'Adaptation parametres pour cuve 2000L', 'Pierre D.', hoursAgo(45));
+  branches.find(b => b.id === mab2kBrId)!.headCommitId = m2kC1;
+
+  // Branch 7: "GMP Validation" from v7
+  const mabGMPBrId = mkBranch('mab-perf', 'GMP Validation', mC7, mabMainId, mC7, hoursAgo(25), 7);
+  const mGMPC1 = mkCommit('mab-perf', mabGMPBrId, mC7, mabGMP, 'Gel des parametres pour validation GMP', 'Marie L.', hoursAgo(18), ['SOP', 'QA-approved']);
+  branches.find(b => b.id === mabGMPBrId)!.headCommitId = mGMPC1;
 
   return { recipes, commits, branches, activeBranchIds };
 }
