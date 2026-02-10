@@ -81,26 +81,30 @@ export function useVersioningInit() {
   useEffect(() => {
     // One-time seed: if versioning store is empty OR missing any seeded recipe
     const seed = generateSeedData();
-    const seedRecipeIds = seed.recipes.map(r => r.id);
-    const hasMissingSeedRecipe = seedRecipeIds.some(id => !commits.some(c => c.recipeId === id));
+    const seedRecipeIds = new Set(seed.recipes.map(r => r.id));
+    const hasMissingSeedRecipe = [...seedRecipeIds].some(rid => !commits.some(c => c.recipeId === rid));
     if (!seeded.current && hasMissingSeedRecipe) {
       seeded.current = true;
 
       // Replace recipes in main store with seeded ones (keep existing user recipes too)
-      const existingIds = new Set(seed.recipes.map(r => r.id));
-      const userRecipes = useStore.getState().recipes.filter(r => !existingIds.has(r.id));
+      const userRecipes = useStore.getState().recipes.filter(r => !seedRecipeIds.has(r.id));
       useStore.setState({
         recipes: [...seed.recipes, ...userRecipes],
         selectedRecipeId: seed.recipes[0]?.id || null,
         selectedOperationId: seed.recipes[0]?.operations[0]?.id || null,
       });
 
-      // Load versioning data (merge with any existing)
+      // For seeded recipes: REPLACE all commits/branches (purges old random-ID duplicates)
       const vs = useVersioningStore.getState();
+      const userCommits = vs.commits.filter(c => !seedRecipeIds.has(c.recipeId));
+      const userBranches = vs.branches.filter(b => !seedRecipeIds.has(b.recipeId));
+      const userActiveBranches = Object.fromEntries(
+        Object.entries(vs.activeBranchIds).filter(([rid]) => !seedRecipeIds.has(rid))
+      );
       useVersioningStore.setState({
-        commits: [...vs.commits.filter(c => !seed.commits.some(sc => sc.id === c.id)), ...seed.commits],
-        branches: [...vs.branches.filter(b => !seed.branches.some(sb => sb.id === b.id)), ...seed.branches],
-        activeBranchIds: { ...vs.activeBranchIds, ...seed.activeBranchIds },
+        commits: [...userCommits, ...seed.commits],
+        branches: [...userBranches, ...seed.branches],
+        activeBranchIds: { ...userActiveBranches, ...seed.activeBranchIds },
       });
       return;
     }

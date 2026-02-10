@@ -5,7 +5,9 @@
 import { Recipe } from '../types';
 import { RecipeCommit, RecipeBranch, BRANCH_COLORS } from './types';
 
-const id = () => Math.random().toString(36).substr(2, 9);
+// Deterministic IDs so re-seeding deduplicates correctly
+let _seedCounter = 0;
+const id = (prefix: string) => `seed-${prefix}-${_seedCounter++}`;
 
 // Offsets for realistic timestamps (hours ago)
 const hoursAgo = (h: number) => Date.now() - h * 3600_000;
@@ -517,6 +519,7 @@ interface SeedData {
 }
 
 export function generateSeedData(): SeedData {
+  _seedCounter = 0; // Reset for deterministic IDs across calls
   const recipes: Recipe[] = [mabV8, choV5, ecoliV3, pichiaV2, cipV2, su50V3];
   const commits: RecipeCommit[] = [];
   const branches: RecipeBranch[] = [];
@@ -524,14 +527,14 @@ export function generateSeedData(): SeedData {
 
   // Helper to create commit
   const mkCommit = (recipeId: string, branchId: string, parentId: string | null, snapshot: Recipe, msg: string, author: string, ts: number, tags: string[] = []): string => {
-    const cid = id();
+    const cid = id('c');
     commits.push({ id: cid, recipeId, branchId, parentCommitId: parentId, snapshot: JSON.parse(JSON.stringify(snapshot)), message: msg, author, timestamp: ts, tags });
     return cid;
   };
 
   // Helper to create branch
   const mkBranch = (recipeId: string, name: string, headId: string | null, parentBranchId: string | null, forkCommitId: string | null, ts: number, colorIdx: number): string => {
-    const bid = id();
+    const bid = id('b');
     branches.push({ id: bid, recipeId, name, headCommitId: headId, parentBranchId, forkCommitId, createdAt: ts, color: BRANCH_COLORS[colorIdx % BRANCH_COLORS.length] });
     return bid;
   };
