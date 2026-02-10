@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Diff Visuel - Recette Bio OS</title>
+  <style>
+    @font-face {
+      font-family: "Inter";
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+      src: local("Inter"), local("Segoe UI"), local("SF Pro Text"), local("Helvetica Neue"), local("Arial");
+    }
+
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --stroke: #e6e8ee;
+      --text: #0f172a;
+      --muted: #6b7280;
+      --blue: #3b82f6;
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --purple: #a855f7;
+      --muted-2: #94a3b8;
+
+      /* Diff colors */
+      --diff-added-bg: rgba(34, 197, 94, 0.08);
+      --diff-added-border: #22c55e;
+      --diff-removed-bg: rgba(239, 68, 68, 0.08);
+      --diff-removed-border: #ef4444;
+      --diff-modified-bg: rgba(251, 191, 36, 0.08);
+      --diff-modified-border: #f59e0b;
+      --diff-unchanged-opacity: 0.4;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ===== Top bar ===== */
+    .topbar {
+      height: 64px;
+      background: #fff;
+      border-bottom: 1px solid var(--stroke);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .topbar-title {
+      font-weight: 800;
+      font-size: 16px;
+    }
+    .topbar-recipe {
+      font-weight: 600;
+      color: var(--blue);
+      background: rgba(59, 130, 246, 0.08);
+      padding: 4px 12px;
+      border-radius: 8px;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn {
+      height: 36px;
+      padding: 0 16px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn.dark {
+      background: var(--text);
+      color: #fff;
+      border-color: transparent;
+    }
+    .btn.ghost {
+      border: none;
+      background: none;
+      color: var(--muted);
+    }
+
+    /* ===== Version selector bar ===== */
+    .diff-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--stroke);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .version-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 13px;
+      border: 2px solid;
+    }
+    .version-pill.old {
+      border-color: var(--red);
+      background: var(--diff-removed-bg);
+      color: var(--red);
+    }
+    .version-pill.new {
+      border-color: var(--green);
+      background: var(--diff-added-bg);
+      color: #16a34a;
+    }
+    .diff-arrow {
+      font-size: 20px;
+      color: var(--muted);
+    }
+    .diff-legend {
+      margin-left: auto;
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+    }
+    .legend-dot.added { background: var(--diff-added-border); }
+    .legend-dot.removed { background: var(--diff-removed-border); }
+    .legend-dot.modified { background: var(--diff-modified-border); }
+    .legend-dot.unchanged { background: #cbd5e1; }
+
+    /* ===== Operation tabs ===== */
+    .op-tabs {
+      padding: 12px 24px;
+      display: flex;
+      gap: 8px;
+    }
+    .op-tab {
+      padding: 6px 16px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      position: relative;
+    }
+    .op-tab.active {
+      border-color: var(--blue);
+      background: rgba(59, 130, 246, 0.06);
+    }
+    .op-tab .badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 800;
+      display: grid;
+      place-items: center;
+      color: #fff;
+    }
+    .op-tab .badge.modified { background: var(--amber); }
+    .op-tab .badge.added { background: var(--green); }
+
+    /* ===== Canvas ===== */
+    .canvas-wrap {
+      margin: 0 24px 24px;
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      position: relative;
+      height: 520px;
+      overflow: hidden;
+    }
+    .canvas {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    .wires {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ===== Nodes ===== */
+    .node {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      min-width: 210px;
+      max-width: 270px;
+      height: 60px;
+      border-radius: 16px;
+      background: #fff;
+      border: 2px solid var(--stroke);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+      z-index: 2;
+      transition: all 0.3s ease;
+    }
+    .nodeIcon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 1000;
+      flex: 0 0 auto;
+      font-size: 15px;
+    }
+    .nodeText { min-width: 0; }
+    .nodeTitle {
+      font-weight: 1000;
+      color: #0f172a;
+      font-size: 14px;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .nodeSub {
+      font-weight: 900;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ===== Diff states ===== */
+    .node.diff-unchanged {
+      opacity: var(--diff-unchanged-opacity);
+      border-color: var(--stroke);
+    }
+    .node.diff-added {
+      border-color: var(--diff-added-border);
+      border-width: 3px;
+      background: var(--diff-added-bg);
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12), 0 10px 24px rgba(15, 23, 42, 0.06);
+      animation: pulse-green 2s ease-in-out infinite;
+    }
+    .node.diff-removed {
+      border-color: var(--diff-removed-border);
+      border-width: 3px;
+      border-style: dashed;
+      background: var(--diff-removed-bg);
+      opacity: 0.65;
+      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12), 0 10px 24px rgba(15, 23, 42, 0.06);
+    }
+    .node.diff-removed .nodeTitle {
+      text-decoration: line-through;
+      color: var(--red);
+    }
+    .node.diff-modified {
+      border-color: var(--diff-modified-border);
+      border-width: 3px;
+      background: var(--diff-modified-bg);
+      box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.12), 0 10px 24px rgba(15, 23, 42, 0.06);
+      animation: pulse-amber 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12); }
+      50% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0.18); }
+    }
+    @keyframes pulse-amber {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.12); }
+      50% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 0.18); }
+    }
+
+    /* Diff badge on node */
+    .diff-badge {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 900;
+      color: #fff;
+      z-index: 3;
+    }
+    .diff-badge.added { background: var(--diff-added-border); }
+    .diff-badge.removed { background: var(--diff-removed-border); }
+    .diff-badge.modified { background: var(--diff-modified-border); }
+
+    /* Diff detail tooltip */
+    .diff-detail {
+      position: absolute;
+      bottom: -46px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--text);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      z-index: 10;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .diff-detail::before {
+      content: "";
+      position: absolute;
+      top: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-bottom: 5px solid var(--text);
+    }
+    .node:hover .diff-detail {
+      opacity: 1;
+    }
+
+    /* Wire diff */
+    .wire-removed {
+      stroke-dasharray: 8 6;
+      opacity: 0.4;
+    }
+    .wire-added {
+      stroke-dasharray: none;
+      filter: drop-shadow(0 0 3px rgba(34, 197, 94, 0.5));
+    }
+
+    /* ===== Change summary panel ===== */
+    .summary-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 280px;
+      background: #fff;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+      z-index: 20;
+      font-size: 13px;
+      overflow: hidden;
+    }
+    .summary-header {
+      padding: 12px 16px;
+      font-weight: 800;
+      font-size: 14px;
+      border-bottom: 1px solid var(--stroke);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .summary-list {
+      padding: 8px 0;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .summary-item {
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .summary-item:hover {
+      background: #f8fafc;
+    }
+    .summary-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 900;
+      color: #fff;
+      flex: 0 0 auto;
+    }
+    .summary-icon.added { background: var(--green); }
+    .summary-icon.removed { background: var(--red); }
+    .summary-icon.modified { background: var(--amber); }
+    .summary-text { min-width: 0; }
+    .summary-name { font-weight: 700; }
+    .summary-desc {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    .summary-stats {
+      padding: 12px 16px;
+      border-top: 1px solid var(--stroke);
+      display: flex;
+      gap: 16px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .stat { display: flex; align-items: center; gap: 4px; }
+    .stat.added { color: #16a34a; }
+    .stat.removed { color: var(--red); }
+    .stat.modified { color: var(--amber); }
+
+    /* ===== Toggle diff mode ===== */
+    .diff-toggle {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 0;
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      z-index: 20;
+      overflow: hidden;
+    }
+    .diff-toggle button {
+      padding: 8px 20px;
+      font-weight: 700;
+      font-size: 12px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+    .diff-toggle button.active {
+      background: var(--text);
+      color: #fff;
+    }
+    .diff-toggle button:hover:not(.active) {
+      background: #f1f5f9;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-title">Diff Visuel</span>
+      <span class="topbar-recipe">Grow-A</span>
+    </div>
+    <div class="topbar-right">
+      <button class="btn ghost" onclick="location.reload()">Fermer le diff</button>
+      <button class="btn dark" id="btnRestore">Restaurer v2.1</button>
+    </div>
+  </div>
+
+  <!-- Version comparison bar -->
+  <div class="diff-bar">
+    <div class="version-pill old">
+      <span>v2.1</span>
+      <span style="font-weight:400;font-size:11px;">12 jan - "Version initiale"</span>
+    </div>
+    <span class="diff-arrow">&rarr;</span>
+    <div class="version-pill new">
+      <span>v3.2</span>
+      <span style="font-weight:400;font-size:11px;">14 jan - "Ajust pH + ajout pO2"</span>
+    </div>
+    <div class="diff-legend">
+      <div class="legend-item"><div class="legend-dot added"></div> Ajout</div>
+      <div class="legend-item"><div class="legend-dot removed"></div> Supprim</div>
+      <div class="legend-item"><div class="legend-dot modified"></div> Modifi</div>
+      <div class="legend-item"><div class="legend-dot unchanged"></div> Inchang</div>
+    </div>
+  </div>
+
+  <!-- Operation tabs -->
+  <div class="op-tabs">
+    <div class="op-tab active" onclick="showOp('prep')">
+      Preparation
+      <span class="badge modified">2</span>
+    </div>
+    <div class="op-tab" onclick="showOp('batch')">
+      Batch
+      <span class="badge added">+</span>
+    </div>
+    <div class="op-tab" onclick="showOp('inoc')">
+      Inoculation
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <div class="canvas-wrap">
+    <div class="canvas" id="canvas">
+      <svg class="wires" id="wires"></svg>
+      <!-- Nodes will be injected by JS -->
+    </div>
+
+    <!-- Change summary panel -->
+    <div class="summary-panel" id="summaryPanel">
+      <div class="summary-header">
+        <span>Changements</span>
+        <span style="font-size:11px;color:var(--muted);">Preparation</span>
+      </div>
+      <div class="summary-list" id="summaryList">
+        <!-- filled by JS -->
+      </div>
+      <div class="summary-stats">
+        <div class="stat added">+1 phase</div>
+        <div class="stat removed">-1 phase</div>
+        <div class="stat modified">2 modifies</div>
+      </div>
+    </div>
+
+    <!-- Diff toggle -->
+    <div class="diff-toggle">
+      <button class="active" id="btnUnified" onclick="setDiffMode('unified')">Unifie</button>
+      <button id="btnSplit" onclick="setDiffMode('split')">Cote a cote</button>
+      <button id="btnCurrent" onclick="setDiffMode('current')">Version actuelle</button>
+    </div>
+  </div>
+
+<script>
+
+  const iconByType = {
+    start:     { bg: "#22c55e", label: "\u25B6" },
+    parameter: { bg: "#3b82f6", label: "P" },
+    operator:  { bg: "#f59e0b", label: "\u270E" },
+    wait:      { bg: "#94a3b8", label: "\u23F1" },
+    profile:   { bg: "#10b981", label: "\u21BA" },
+    end:       { bg: "#ef4444", label: "\u25A0" },
+  };
+
+  // === Old version (v2.1) ===
+  const oldNodes = [
+    { id: "start",  type: "start",     title: "Start",                sub: "",                     x: 60,  y: 230 },
+    { id: "param1", type: "parameter", title: "Set temperature",      sub: "TEMP 37\u00B0C",               x: 280, y: 220 },
+    { id: "wait1",  type: "wait",      title: "Wait 30 min",          sub: "Dur\u00E9e 30 min",           x: 530, y: 220 },
+    { id: "end",    type: "end",       title: "End",                  sub: "",                     x: 770, y: 230 },
+  ];
+  const oldEdges = [
+    { from: "start",  to: "param1" },
+    { from: "param1", to: "wait1" },
+    { from: "wait1",  to: "end" },
+  ];
+
+  // === New version (v3.2) ===
+  const newNodes = [
+    { id: "start",  type: "start",     title: "Start",                     sub: "",                              x: 60,  y: 230 },
+    { id: "param1", type: "parameter", title: "Set temperature and pH",    sub: "TEMP 37\u00B0C \u00B7 pH 6.8",         x: 280, y: 160,
+      diff: "modified", diffDesc: "Ajout pH.Setpoint=6.8" },
+    { id: "param2", type: "parameter", title: "Activate pO2 control",     sub: "pO2 Setpoint 35%",             x: 280, y: 310,
+      diff: "added", diffDesc: "Nouvelle phase" },
+    { id: "wait1",  type: "wait",      title: "Wait 45 min",              sub: "Dur\u00E9e 45 min",                    x: 560, y: 220,
+      diff: "modified", diffDesc: "30 min \u2192 45 min" },
+    { id: "end",    type: "end",       title: "End",                      sub: "",                              x: 800, y: 230 },
+  ];
+  const newEdges = [
+    { from: "start",  to: "param1" },
+    { from: "start",  to: "param2", diff: "added" },
+    { from: "param1", to: "wait1" },
+    { from: "param2", to: "wait1",  diff: "added" },
+    { from: "wait1",  to: "end" },
+  ];
+
+  // Removed nodes (shown in unified mode)
+  const removedNodes = [
+    // The old "wait 30 min" shown as ghost
+  ];
+
+  let diffMode = "unified";
+
+  function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+  function renderNodes() {
+    // Clear
+    document.querySelectorAll(".node").forEach(el => el.remove());
+    const canvas = document.getElementById("canvas");
+    const wires = document.getElementById("wires");
+    wires.innerHTML = "";
+
+    const nodes = newNodes;
+
+    nodes.forEach(n => {
+      const el = document.createElement("div");
+      el.className = "node";
+      el.style.left = n.x + "px";
+      el.style.top = n.y + "px";
+      el.dataset.id = n.id;
+
+      // Apply diff class
+      if (n.diff === "added") el.classList.add("diff-added");
+      else if (n.diff === "removed") el.classList.add("diff-removed");
+      else if (n.diff === "modified") el.classList.add("diff-modified");
+      else el.classList.add("diff-unchanged");
+
+      const icon = iconByType[n.type] || { bg: "#94a3b8", label: "?" };
+
+      let badgeHtml = "";
+      if (n.diff === "added") badgeHtml = `<div class="diff-badge added">+</div>`;
+      else if (n.diff === "removed") badgeHtml = `<div class="diff-badge removed">\u2212</div>`;
+      else if (n.diff === "modified") badgeHtml = `<div class="diff-badge modified">\u0394</div>`;
+
+      let detailHtml = "";
+      if (n.diffDesc) {
+        detailHtml = `<div class="diff-detail">${esc(n.diffDesc)}</div>`;
+      }
+
+      el.innerHTML = `
+        ${badgeHtml}
+        <div class="nodeIcon" style="background:${icon.bg};">${icon.label}</div>
+        <div class="nodeText">
+          <div class="nodeTitle">${esc(n.title)}</div>
+          <div class="nodeSub">${esc(n.sub)}</div>
+        </div>
+        ${detailHtml}
+      `;
+
+      canvas.appendChild(el);
+    });
+
+    // Draw edges
+    newEdges.forEach(e => {
+      const fromEl = document.querySelector(`.node[data-id="${e.from}"]`);
+      const toEl = document.querySelector(`.node[data-id="${e.to}"]`);
+      if (!fromEl || !toEl) return;
+      drawEdge(fromEl, toEl, e);
+    });
+
+    renderSummary();
+  }
+
+  function drawEdge(fromEl, toEl, edge) {
+    const wires = document.getElementById("wires");
+    const canvas = document.getElementById("canvas");
+    const cr = canvas.getBoundingClientRect();
+
+    const fr = fromEl.getBoundingClientRect();
+    const tr = toEl.getBoundingClientRect();
+
+    const x1 = fr.left - cr.left + fr.width + 7;
+    const y1 = fr.top - cr.top + fr.height / 2;
+    const x2 = tr.left - cr.left - 7;
+    const y2 = tr.top - cr.top + tr.height / 2;
+
+    const dx = x2 - x1;
+    const bend = Math.min(Math.abs(dx) / 2, 120);
+    const d = `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke-width", "3");
+    path.setAttribute("stroke-linecap", "round");
+
+    if (edge.diff === "added") {
+      path.setAttribute("stroke", "#22c55e");
+      path.classList.add("wire-added");
+    } else if (edge.diff === "removed") {
+      path.setAttribute("stroke", "#ef4444");
+      path.classList.add("wire-removed");
+    } else {
+      path.setAttribute("stroke", "#cbd5e1");
+      path.style.opacity = "0.4";
+    }
+
+    wires.appendChild(path);
+  }
+
+  function renderSummary() {
+    const list = document.getElementById("summaryList");
+    list.innerHTML = "";
+
+    const changes = [
+      { type: "modified", name: "Set temperature and pH", desc: "Ajout pH.State, pH.Mode, pH.Setpoint=6.8" },
+      { type: "added",    name: "Activate pO2 control",  desc: "Nouvelle phase : pO2 Setpoint 35%" },
+      { type: "modified", name: "Wait 45 min",            desc: "Dur\u00E9e chang\u00E9e : 30 min \u2192 45 min" },
+    ];
+
+    changes.forEach(c => {
+      const item = document.createElement("div");
+      item.className = "summary-item";
+      const iconLabel = c.type === "added" ? "+" : c.type === "removed" ? "\u2212" : "\u0394";
+      item.innerHTML = `
+        <div class="summary-icon ${c.type}">${iconLabel}</div>
+        <div class="summary-text">
+          <div class="summary-name">${esc(c.name)}</div>
+          <div class="summary-desc">${esc(c.desc)}</div>
+        </div>
+      `;
+      list.appendChild(item);
+    });
+  }
+
+  function setDiffMode(mode) {
+    diffMode = mode;
+    document.querySelectorAll(".diff-toggle button").forEach(b => b.classList.remove("active"));
+    if (mode === "unified") document.getElementById("btnUnified").classList.add("active");
+    if (mode === "split") document.getElementById("btnSplit").classList.add("active");
+    if (mode === "current") document.getElementById("btnCurrent").classList.add("active");
+
+    // In "current" mode, remove diff styling
+    document.querySelectorAll(".node").forEach(el => {
+      if (mode === "current") {
+        el.classList.remove("diff-unchanged", "diff-added", "diff-modified", "diff-removed");
+        el.style.opacity = "1";
+        const badge = el.querySelector(".diff-badge");
+        if (badge) badge.style.display = "none";
+        const detail = el.querySelector(".diff-detail");
+        if (detail) detail.style.display = "none";
+      } else {
+        // Re-render
+        renderNodes();
+      }
+    });
+
+    // Update wires
+    if (mode === "current") {
+      document.querySelectorAll("#wires path").forEach(p => {
+        p.setAttribute("stroke", "#cbd5e1");
+        p.style.opacity = "1";
+        p.classList.remove("wire-added", "wire-removed");
+        p.removeAttribute("stroke-dasharray");
+        p.removeAttribute("filter");
+      });
+      document.getElementById("summaryPanel").style.display = "none";
+    } else {
+      document.getElementById("summaryPanel").style.display = "";
+    }
+  }
+
+  // ===== Init =====
+  window.addEventListener("DOMContentLoaded", () => {
+    renderNodes();
+  });
+  window.addEventListener("resize", () => {
+    renderNodes();
+  });
+
+</script>
+</body>
+</html>

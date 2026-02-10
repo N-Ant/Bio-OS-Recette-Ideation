@@ -1,0 +1,762 @@
+Recipes Module
+
+Procedure
+ttHighlight the “Batch” operation in the sequence list.
+ttDrag the “Wait phase” phase type from the library and position it in the
+planned sequence.
+ttDrag the “Parameter phase” phase type from the library and position it in
+the planned sequence.
+ttDrag the “End” phase type from the library and position it in the planned
+sequence.
+
+ttTo configure the “Wait phase” phase type: In the phase, click on the [Edit]
+button or double-click on the phase.
+yyThe [EDIT WAIT PHASE] input / selection screen is shown.
+
+ttEnter the name “Wait 1 min” for the phase in the input / selection screen.
+ttTo select “min” as the engineering unit: Click on the [min] button.
+ttEnter value “1” for the wait time.
+ttClick on the [SAVE] button.
+
+70
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+		
+
+Recipes Module
+
+ttTo configure the “Parameter phase” phase type: In the phase, click on the
+[Edit] button or double-click on the phase.
+yyThe [EDIT PARAMETER PHASE] input / selection screen is shown.
+
+ttEnter the name “Activate pO2 control” for the phase in the input /
+selection screen.
+ttTo start the phase automatically: Select “Automatic” mode.
+
+ttTo select the parameter: In the [PARAMETERS] selection menu, click on
+the [Add] button.
+yyThe [ADD PARAMETER (#/#)] selection menu is shown.
+ttSelect the following control module variables:
+−− “pO2.State”
+−− “pO2.Mode”
+−− “pO2.Setpoint”
+ttTo confirm the selection: Click on the [OK] button.
+yyThe control module variables are listed in the [PARAMETERS] selection
+menu.
+ttSet the controller modes:
+ttTo set the “State” controller mode for the pO2 controller: Next to the
+“pO2.State” entry, click on the [Expand] button and select “remote”
+mode.
+ttTo set the “Mode” controller mode for the pO2 controller: Next to the
+“pO2.Mode” entry, click on the Activate p02 control [Expand] button
+and select “auto” mode.
+ttTo define the setpoint: Click in the input screen next to the “pO2.
+Setpoint” entry and enter pO2 value “35”.
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+71
+
+Recipes Module
+
+ttTo confirm the entries for the phase: Click on the [SAVE] button.
+ttLink the following phases to each other.
+−− “Start”
+−− “Wait 1 min”
+−− “Activate pO2 control”
+−− “End”
+
+ttCreate the condition for starting the “Wait 1 min” phase: In order to do
+this, click on the [Edit] button in the transition.
+yyThe [EDIT CONDITION] input screen is shown.
+
+ttEnter the name “pO2.< 35%” in the [META DATA] input screen.
+
+72
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+		
+
+Recipes Module
+
+ttIn the [FUNCTIONS] input screen, click on the [VARIABLE] button.
+yyThe [SELECT VARIABLE] selection menu is shown:
+
+ttSelect the “pO2.Value” process variable and click on the [OK] button.
+yyThe process variable is entered in the input field and the condition is
+displayed in the preview:
+
+ttIn the [OTHERS] input screen, click on the [<] button.
+yyThe operator “<” is entered in the input field for the condition.
+ttEnter the numerical value “35” in the input field.
+yyThe condition is displayed in the preview:
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+73
+
+Recipes Module
+
+ttClick on the [SAVE] button.
+yyThe condition is defined. The name of the condition is displayed in the
+planned sequence next to the transition. When the condition is met, the
+“Wait 1 min” phase starts immediately.
+
+ttCreate condition A for starting the “Activate pO2 control” phase: In order
+to do this, click on the [Edit] button in the transition.
+yyThe [EDIT CONDITION] input screen is shown.
+
+ttEnter the name “pO2.< 35%” in the [META DATA] input screen.
+ttEnter a description (e.g., “Condition A”).
+
+74
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+		
+
+Recipes Module
+
+ttIn the [FUNCTIONS] input screen, click on the [VARIABLE] button.
+yyThe [SELECT VARIABLE] selection menu is shown:
+
+ttSelect the “pO2.Value” process variable and click on the [OK] button.
+yyThe process variable is entered in the input field and the condition is
+displayed in the preview:
+
+ttIn the [OTHERS] input screen, click on the [<] button.
+yyThe operator “<” is entered in the input field for the condition.
+ttEnter the numerical value “35” in the input field.
+yyThe condition is displayed in the preview:
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+75
+
+Recipes Module
+
+ttClick on the [SAVE] button.
+yyCondition A is defined. The name of the condition is displayed in the
+planned sequence next to the transition. When the condition is met, the
+“Activate pO2 control” phase starts immediately.
+
+ttCreate the link to condition B for repeating the “Wait 1 min” phase:
+ttIn the “Wait 1 min” phase output, click on the [Link] symbol.
+
+ttIn the “Wait 1 min” phase input, click on the [Link] symbol.
+
+76
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+		
+
+Recipes Module
+
+yyThe “Jump” link is established between the input and output of the
+“Wait 1 min” phase:
+
+ttCreate condition B for starting the “Wait 1 min” phase: In order to do this,
+click on the [Edit] button in the transition.
+yyThe [EDIT CONDITION] input screen is shown.
+
+ttEnter the name “pO2.Value > 35%” in the [META DATA] input screen.
+ttEnter a description (e.g., “Condition B”).
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+77
+
+Recipes Module
+
+ttIn the [FUNCTIONS] input screen, click on the [VARIABLE] button.
+yyThe [SELECT VARIABLE] selection menu is shown:
+
+ttSelect the “pO2.Value” process variable and click on the [OK] button.
+yyThe process variable is entered in the input field and the condition is
+displayed in the preview:
+
+ttIn the [OTHERS] input screen, click on the [>] button.
+yyThe operator “>” is entered in the input field for the condition.
+ttEnter the numerical value “35” in the input field.
+yyThe condition is displayed in the preview:
+
+ttClick on the [SAVE] button.
+
+78
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+		
+
+Recipes Module
+
+yyCondition B is defined. The name of the condition is displayed in the
+planned sequence next to the transition. When the condition B is met,
+the “Wait 1 min” phase is repeated until condition A is met.
+
+ttTo save the recipe: Click on the [SAVE] button.
+yyThe recipe editor is closed and the [RECIPES (#/#)] menu is shown.
+The recipe is listed in the menu.
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+79
+
+Recipes Module
+
+4.5
+
+Special Recipe Functions
+
+4.5.1
+
+Configuration of the “Operator Prompt Phase”
+
+A minimum of one and maximum of three decisions must be configured for
+transition conditions in the “Operator prompt phase” phase type. The
+decisions must correlate to the planned sequence with the configuration of
+1 – 3 transitions. Each transition is followed by a decision path.
+1
+
+2
+
+3
+
+Fig. 47:  Extract of the planned sequence “Operator prompt phase” with 2 transitions (example)
+
+Pos. Description
+
+80
+
+1
+
+Configured “Operator prompt phase”
+
+2
+
+Transition that is correlated and configured for the phase with the
+decision “Yes”
+
+3
+
+Transition that is correlated and configured for the phase with the
+decision “No”
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+		
+
+Recipes Module
+
+Install a condition
+Procedure
+ttClick on the [Edit] button for the corresponding transition.
+yyThe [EDIT CONDITION] window is shown.
+
+ttEnter the data in the [META DATA] input screens (“Yes” in the example).
+ttClick on the [VARIABLE] button.
+
+yyThe [SELECT VARIABLE] selection menu is shown.
+ttSelect “Units” filter.
+ttEnter “None” in the input field of the marked “Units” filter.
+yyThe decision variables configured for the “Operator prompt phase”
+element are listed.
+yyThe decision variables are only available in conditions which are
+directly connected with the output of an operator prompt phase.
+yyThese decision variables displayed are variables that must not be
+assigned to any units.
+yyThe decision variables are created by the user themselves and can
+only be selected in the transition conditions that directly follow the
+“Operator prompt phase” in the planned sequence.
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+81
+
+Recipes Module
+
+ttHighlight the desired decision variable (“Operator prompt phase. Yes” in
+this example) and confirm with [OK].
+
+ttClick on the [SAVE] button.
+yyThe decision variable for the transition is set to “Yes” and the decision
+pathway is configured.
+ttTo configure the second decision pathway with the transition “No”:
+Apply the procedure in the same way.
+
+4.5.2
+
+Setting the Process Time Automatically to Zero
+
+The process time of a started batch can be automatically set to 0.000 h.
+The “Set process time to zero” function is only executed automatically for the
+batch that is linked with the corresponding recipe.
+The execution is determined in the “Parameter phase” phase type with the
+“ProcessTime” control module.
+The function can be added multiple times within an operation and multiple
+times within a parameter phase of the same recipe.
+The function is executed when the phase transitions to the “Running” status
+and previous parameters of this phase have been processed.
+Install “Parameter phase” phase elements
+Procedure
+ttDrag the “Parameter phase” phase type from the library and position it in
+the planned sequence.
+ttIn the phase, click on the [Edit] symbol or double-click on the phase.
+yyThe [EDIT PARAMETER PHASE] input / selection screen is shown.
+ttEnter the name for the phase in the input / selection screen.
+ttSelect the mode:
+ttTo start the phase automatically, select the “Automatic” mode.
+ttTo start the phase manually, select the “Semi-Automatic” mode.
+ttIn the [PARAMETERS] selection menu, click on the [Add] button.
+yyThe [ADD PARAMETER (#/#)] selection menu is shown.
+ttSelect the “ProcessTime” control module.
+ttConfirm the selection with [OK].
+
+82
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+		
+
+Recipes Module
+
+yyThe “ProcessTime” control module is entered in the “PARAMETERS” list.
+ttResumes the phase configuration.
+ttIf required: Configure additional parameters for this phase (see
+Chapter “4.2.6.4 [SELECT PARAMETER (#/#)] Selection Menu”,
+page 49).
+ttClick on the [SAVE] button to complete the setup of the phase.
+
+4.5.3
+
+Setting the Alarm Parameters
+
+Disabling / enabling
+The alarming of a previously correspondingly configured control module can
+be disabled/enabled via a parameter phase. For example, a recipe-controlled
+batch runs through various process phases in which the alarming for a
+specific control module should be temporarily enabled or disabled.
+Alarm limits
+The absolute alarm limits and the deadband value can be changed via a
+parameter phase of a recipe. For example, a recipe-controlled batch runs
+through various process phases in which different alarm limits should be
+used for a specific control module.
+In the next batch, the alarm limits that were configured (as default) in the
+[ADMINISTRATION] function pane are used again.
+4.5.3.1 Disabling / Enabling the Alarming
+Requirements
+−− Alarming is enabled and configured in the [ADMINISTRATION] function
+pane for the control module (setting: [Absolute]).
+−− The alarm parameters are enabled and configured in the
+[ADMINISTRATION] function pane for the control module.
+Disabe alarming
+Procedure
+ttDrag the “Parameter phase” phase type from the library and position it in
+the planned sequence.
+ttIn the phase, click on the [Edit] symbol or double-click on the phase.
+yyThe [EDIT PARAMETER PHASE] input / selection screen is shown.
+ttEnter the name for the phase in the input / selection screen.
+ttSelect the mode:
+ttTo start the phase automatically, select the “Automatic” mode.
+ttTo start the phase manually, select the “Semi-Automatic” mode.
+ttIn the [PARAMETERS] selection menu, click on the [Add] button.
+yyThe [ADD PARAMETER (#/#)] selection menu is shown.
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+83
+
+Recipes Module
+
+ttSelect the “STIRR_1.Alarming” control module variable (example: STIRR_1).
+
+Fig. 48:  Selection screen with selection of the “STIRR_1.Alarming” parameter
+
+ttDisable the alarming: In order to do this, select [Off] for “Select value”.
+
+Fig. 49:  Select [Off] for “Select value”
+
+ttClick on the [SAVE] button to complete the setup of the phase.
+yyThe alarming is disabled when the parameter phase becomes active
+during the recipe-controlled batch.
+
+1
+
+2
+
+Fig. 50:  Enabled and disabled alarming in the unit display (example)
+
+Pos. Description
+
+84
+
+1
+
+The parameter phase is not yet active: The alarming is enabled.
+
+2
+
+The parameter phase has become active: The alarming is disabled.
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+		
+
+Recipes Module
+
+Enable disabled alarming
+Procedure
+ttDrag the “Parameter phase” phase type from the library and position it in
+the planned sequence.
+ttIn the phase, click on the [Edit] symbol or double-click on the phase.
+yyThe [EDIT PARAMETER PHASE] input / selection screen is shown.
+ttEnter the name for the phase in the input / selection screen.
+ttSelect the mode:
+ttTo start the phase automatically, select the “Automatic” mode.
+ttTo start the phase manually, select the “Semi-Automatic” mode.
+ttIn the [PARAMETERS] selection menu, click on the [Add] button.
+yyThe [ADD PARAMETER (#/#)] selection menu is shown.
+ttSelect the “STIRR_1.Alarming” control module variable (example: STIRR_1).
+
+Fig. 51:  Selection screen with selection of the “STIRR_1.Alarming” parameter
+
+ttEnable the alarming: In order to do this, select [On] for “Select value”.
+
+Fig. 52:  Select [On] for “Select value”
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+85
+
+Recipes Module
+
+ttTo modify the alarm limits: See Chapter 4.5.3.2.
+ttClick on the [SAVE] button to complete the setup of the phase.
+yyThe disabled alarming is enabled when the parameter phase becomes
+active during the recipe-controlled batch.
+
+1
+
+2
+
+Fig. 53:  Disabled and enabled alarming in the unit display (example)
+
+Pos. Description
+1
+
+The parameter phase is not yet active: The alarming is disabled.
+
+2
+
+The parameter phase has become active: The alarming is enabled.
+
+4.5.3.2 Modifying Alarm Limits
+Requirements
+−− Alarming is enabled and configured in the [ADMINISTRATION] function
+pane for the control module (setting: [Absolute]).
+−− The alarm parameters that should be edited in the parameter phase are
+enabled and configured in the [ADMINISTRATION] function pane for the
+control module.
+Procedure
+ttDrag the “Parameter phase” phase type from the library and position it in
+the planned sequence.
+ttIn the phase, click on the [Edit] symbol or double-click on the phase.
+yyThe [EDIT PARAMETER PHASE] input / selection screen is shown.
+ttEnter the name for the phase in the input / selection screen.
+ttSelect the mode:
+ttTo start the phase automatically, select the “Automatic” mode.
+ttTo start the phase manually, select the “Semi-Automatic” mode.
+ttIn the [PARAMETERS] selection menu, click on the [Add] button.
+yyThe [ADD PARAMETER (#/#)] selection menu is shown.
+
+86
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+		
+
+Recipes Module
+
+ttSelect the control module variable(s):
+
+Fig. 54:  Selection screen with selection of parameter for the alarm limits
+
+ttModify the alarm limits: Enter the values for the corresponding alarm
+limits.
+
+Fig. 55:  Entering the alarm limits (example)
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+87
+
+Recipes Module
+
+ttClick on the [SAVE] button to complete the setup of the phase.
+yyThe modified alarm limit(s) is(are) enabled when the parameter phase
+becomes active during the recipe-controlled batch.
+
+1
+
+2
+
+Fig. 56:  Modified alarm limits in the unit display (example)
+
+Pos. Description
+1
+2
+
+The parameter phase is not yet active: Alarm limits before the
+modification.
+The parameter phase has become active: Alarm limits have been
+modified.
+
+4.5.4
+
+Validating the Recipe Syntax
+
+During creation of a recipe, recipe syntax validation can be activated at any
+time. When validation is activated, errors in all operations and phases of a
+recipe are marked with a color and, depending on the type of error, explained
+in a separate error message. The status of the validation button is the same
+across all operations in a recipe. Errors in a recipe hinder operation on a unit.
+Possible errors are:
+−− Missing connection lines between the phase elements
+−− Missing END phase
+−− Connection error in a parallel structure
+−− Unconfigured phases
+The processing of a recipe can be resumed despite there being error
+messages. It is also possible to save a recipe if the syntax is invalid.
+An activated validation can be deactivated again at any time.
+
+88
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+		
+
+Recipes Module
+
+The following procedure shows the validation function as an example.
+2
+
+1
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+Fig. 57:  Displaying the error in the validation of the recipe syntax (variants)
+
+Pos. Symbol
+
+Description
+
+1
+
+Syntax error on an operation level
+
+2
+
+Syntax error in the “Parameter phase”
+
+3
+
+Validation button
+The validation button cannot be
+activated until at least one operation
+has been created.
+Validation is deactivated.
+Validation is activated.
+
+4
+
+Tool tip with details of the faulty parallel
+structure
+
+5
+
+Invalid transition connection
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+89
+
+Recipes Module
+
+Pos. Symbol
+
+Description
+
+6
+
+Tool tip with details on the syntax error
+of the phase element
+
+7
+
+Syntax error in the “Wait phase”
+
+8
+
+Separate error message (example):
+−− “End phase” phase element is missing.
+−− Error in parallel pathways.
+
+Procedure
+ttStart the recipe editor.
+yyThe validation button (1) cannot be activated until at least one operation
+is present.
+
+1
+
+1
+
+90
+
+ttCreate one operation.
+yyThe validation button (1) can be activated and a tool tip indicates the
+deactivated validation.
+ttClick on the validation button.
+yyValidation is activated.
+yySyntax errors are highlighted at operation level and within operation in
+the “Parameter phase”.
+yyA missing end phase and errors in parallel paths are indicated in
+separate error messages.
+yyInvalid transition connections are indicated, e.g. simultaneously
+running parallel pathways.
+ttPosition the mouse pointer over the red area of the “Wait phase” element.
+yyDetails about syntax errors for the phase are displayed in a tool tip.
+ttCorrect the syntax error.
+yyThe colored area in the “Wait phase” element changes from red to gray.
+ttPosition the mouse pointer over the red symbol next to the transition.
+yyDetails about the missing parallel structure are displayed in a tool tip.
+ttCorrect the defective parallel structure.
+yyThe red symbol next to the transition is hidden.
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+		
+
+4.6
+
+Recipes Module
+
+Automated Batch Process
+
+The batch process is started in the “MONITORING” function pane (for
+starting a batch process, see BioPAT® MFCS 4 User Manual). Before a batch
+process is started, the “START BATCHES” input and selection screen is
+displayed. The batch process can be linked to a master recipe in the input
+and selection screen. This link automatically runs the batch process
+according to the recipe specifications.
+[START BATCHES] input and selection screen
+1
+
+Fig. 58:  [START BATCHES] input and selection screen
+
+Pos. Field
+
+Symbol Description
+
+1
+
+Displays the selected unit of the batch
+process.
+Batch Name*
+
+Displays the name of the batch process.
+
+Description
+
+Enters a description for the batch process.
+
+Recipe
+
+Displays the selected recipe. The recipe
+specifications determine the automated
+sequence of the batch process.
+Opens the selection list with recipes.
+
+START
+
+Starts the batch process.
+
+CANCEL
+
+Undoes the selection of the recipe with
+the batch process and closes the input and
+selection screen.
+
+* Required information
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+91
+
+Recipes Module
+
+Recipe selection list
+The recipe for the automated batch process is selected in the selection list.
+1
+
+3
+
+2
+
+Fig. 59:  Selection list with recipes (example)
+
+Pos. Field
+
+Description
+
+1
+
+Indicates a recipe that can be selected for the
+batch process.
+
+2
+
+Indicates a recipe that cannot be selected for the
+batch process.
+
+3
+
+Filters the entries in the list by
+−− Designation
+−− Short name
+−− Originator
+−− Medium
+−− Strain
+−− Product
+Applicable to
+unit
+
+92
+
+Filters the entries in the list by “usability”:
+
+Yes
+
+Displays the recipes that can be selected for
+the batch process.
+
+No
+
+Displays the recipes that cannot be selected
+for the batch process.
+
+Operating Instructions BioPAT® MFCS 4 Recipe Control Module
+
+

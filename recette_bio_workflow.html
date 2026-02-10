@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Recette Bio OS - Workflow + Assistant IA</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --ink: #1f2937;
+      --muted: #8a94a6;
+      --accent: #111827;
+      --border: #e5e7eb;
+      --shadow: 0 12px 30px rgba(17, 24, 39, 0.08);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 20% 20%, #f3f7ff, #f6f7fb 35%, #f6f7fb),
+                  radial-gradient(circle at 80% 10%, #f2f6ff, #f6f7fb 25%, #f6f7fb);
+      color: var(--ink);
+    }
+    .app {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 100vh;
+    }
+    header {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      background: #fff;
+      box-shadow: 0 1px 0 #e6e8ee;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 0.02em;
+      color: #0f172a;
+    }
+    .brand .dot {
+      width: 12px; height: 12px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #4f46e5, #16a6ff);
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+    }
+    .cluster {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #f4f6fb;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .cluster small {
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .pill-btn {
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 600;
+      color: #111827;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .pill-btn:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+    .primary {
+      background: #111827;
+      color: #fff;
+      border-color: #111827;
+    }
+    .content {
+      display: grid;
+      grid-template-columns: 64px 310px 1fr 320px;
+      gap: 16px;
+      padding: 16px 18px;
+      min-height: 0;
+    }
+    .nav {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 10px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav button {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      color: #6b7280;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+    }
+    .nav button.active {
+      background: #111827;
+      color: #fff;
+      box-shadow: 0 10px 30px rgba(17, 24, 39, 0.25);
+    }
+    .panel {
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .panel h3 {
+      margin: 0;
+      font-size: 16px;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel h3 small { color: var(--muted); font-weight: 600; }
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+    }
+    .toolbar .search {
+      position: relative;
+    }
+    .toolbar input {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: #f9fafb;
+    }
+    .recipes, .operations, .library-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .card {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+    .card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+    .card .title { font-weight: 700; color: #0f172a; }
+    .card .meta { color: var(--muted); font-size: 13px; }
+    .pill {
+      padding: 6px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid #e5e7eb;
+      color: #111827;
+      background: #f8fafc;
+    }
+    .canvas-zone {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 12px;
+      min-height: 0;
+    }
+    .operation-rail {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      box-shadow: var(--shadow);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .op-step {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      font-weight: 700;
+      color: #111827;
+    }
+    .op-step small { color: var(--muted); font-weight: 600; }
+    .canvas {
+      position: relative;
+      background: #f4f6fb;
+      border-radius: var(--radius);
+      min-height: 520px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+    }
+    .link-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .node {
+      position: absolute;
+      min-width: 160px;
+      max-width: 230px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: center;
+      cursor: grab;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      user-select: none;
+    }
+    .node:active { cursor: grabbing; }
+    .node .icon {
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      color: #fff;
+      font-size: 16px;
+    }
+    .node .label { font-weight: 800; color: #111827; }
+    .node .desc { color: var(--muted); font-size: 13px; }
+    .handle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 12px; height: 12px;
+      border-radius: 12px;
+      background: #fff;
+      border: 2px solid #d1d5db;
+      box-shadow: 0 3px 10px rgba(17,24,39,0.18);
+    }
+    .library {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .library-list .library-item {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px dashed #dfe4ea;
+      background: #f9fafb;
+      cursor: grab;
+      transition: all 0.12s ease;
+    }
+    .library-item:hover { background: #fff; box-shadow: var(--shadow); }
+    .library-item .badge {
+      width: 34px; height: 34px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    footer {
+      height: 78px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 18px;
+    }
+    .timeline {
+      background: #fff;
+      border-radius: 50px;
+      border: 1px solid #e5e7eb;
+      box-shadow: var(--shadow);
+      padding: 8px 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .circle-btn {
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      font-weight: 700;
+    }
+    .circle-btn:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+    .ai-toggle {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 30;
+      padding: 12px 16px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #111827, #0ea5e9);
+      color: #fff;
+      font-weight: 800;
+      border: none;
+      box-shadow: 0 14px 40px rgba(14, 165, 233, 0.35);
+      cursor: pointer;
+    }
+    .ai-panel {
+      position: fixed;
+      right: 18px;
+      bottom: 86px;
+      width: 340px;
+      max-height: calc(100vh - 140px);
+      background: #0b1224;
+      color: #e5e7eb;
+      border-radius: 18px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+      padding: 16px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .ai-panel.active { display: flex; }
+    .ai-panel h4 { margin: 0; color: #fff; }
+    .ai-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .ai-chip {
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.06);
+      color: #f9fafb;
+      border: 1px solid rgba(255,255,255,0.08);
+      cursor: pointer;
+      transition: all 0.12s ease;
+      font-weight: 700;
+      text-align: left;
+    }
+    .ai-chip:hover { background: rgba(255,255,255,0.12); }
+    .ai-output {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 120px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #e5e7eb;
+      white-space: pre-line;
+    }
+    .ai-input {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+    .ai-input input {
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+      color: #fff;
+      padding: 10px 12px;
+    }
+    .ai-input button {
+      background: linear-gradient(135deg, #10b981, #14b8a6);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-weight: 800;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+    @media (max-width: 1260px) {
+      .content { grid-template-columns: 64px 280px 1fr; }
+      .library { display: none; }
+    }
+    @media (max-width: 980px) {
+      .content { grid-template-columns: 64px 1fr; }
+      .panel:first-of-type { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand"><span class="dot"></span> WORKFLOW</div>
+      <div class="header-actions">
+        <div class="cluster">BioCat L1-1 <small>Batch</small></div>
+        <div class="cluster">L1-2 <small>Lot</small></div>
+        <button class="pill-btn">+ Ajouter</button>
+        <button class="pill-btn primary">Aperçu</button>
+        <div class="pill-btn" style="gap:6px;">
+          <strong>9/18/16</strong><span style="color:var(--muted);">00h30m</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <nav class="nav" aria-label="Navigation verticale">
+        <button class="active">⌂</button>
+        <button>🧪</button>
+        <button>🎛️</button>
+        <button>📊</button>
+        <button>⚙️</button>
+      </nav>
+
+      <section class="panel" aria-label="Recettes">
+        <div class="toolbar">
+          <h3>Recette <small>(Démo drag & drop)</small></h3>
+          <button class="pill-btn primary" style="padding:10px 12px;">New Recipe +</button>
+        </div>
+        <div class="toolbar">
+          <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:600;">
+            <input type="checkbox" /> Cases à cocher
+          </label>
+          <button class="pill-btn" style="padding:8px 12px;">Filter ▾</button>
+        </div>
+        <div class="toolbar">
+          <div class="search"><input type="search" placeholder="Chercher une recette..." /></div>
+        </div>
+        <div class="recipes" aria-label="Liste de recettes">
+          <div class="card">
+            <div>
+              <div class="title">Grow-A</div>
+              <div class="meta">Phase de croissance contrôlée</div>
+            </div>
+            <span class="pill">PH 7</span>
+          </div>
+          <div class="card">
+            <div>
+              <div class="title">Preparation</div>
+              <div class="meta">Temp 37°C · pH 6.8</div>
+            </div>
+            <span class="pill">Ready</span>
+          </div>
+          <div class="card">
+            <div>
+              <div class="title">Inoculation</div>
+              <div class="meta">Semi-automatique</div>
+            </div>
+            <span class="pill">Step</span>
+          </div>
+          <div class="card">
+            <div>
+              <div class="title">Batch</div>
+              <div class="meta">Condition pO2 &lt; 35%</div>
+            </div>
+            <span class="pill">Loop</span>
+          </div>
+          <button class="pill-btn" style="justify-content:center;">Importer une recette</button>
+        </div>
+      </section>
+
+      <section class="canvas-zone">
+        <div class="operation-rail">
+          <div class="op-step">1 <small>Preparation</small></div>
+          <div class="op-step">2 <small>Inoculation</small></div>
+          <div class="op-step">3 <small>Batch</small></div>
+        </div>
+        <div class="canvas" id="canvas" aria-label="Zone de workflow">
+          <svg class="link-layer" id="linkLayer"></svg>
+        </div>
+      </section>
+
+      <aside class="library" aria-label="Bibliothèque de phases">
+        <div class="toolbar">
+          <h3>Library</h3>
+          <div class="pill">Glisser</div>
+        </div>
+        <div class="library-list">
+          <div class="library-item" draggable="true" data-color="#22c55e" data-icon="▶" data-name="Start" data-desc="Point d'entrée">
+            <div class="badge" style="background:#22c55e;">▶</div>
+            <div><div class="title">Start</div><div class="meta">Début</div></div>
+          </div>
+          <div class="library-item" draggable="true" data-color="#5f9bff" data-icon="P" data-name="Phase paramètre" data-desc="Configurer un setpoint">
+            <div class="badge" style="background:#5f9bff;">P</div>
+            <div><div class="title">Phase paramètre</div><div class="meta">Contrôle</div></div>
+          </div>
+          <div class="library-item" draggable="true" data-color="#fbbf24" data-icon="☰" data-name="Phase opérateur" data-desc="Action manuelle">
+            <div class="badge" style="background:#fbbf24;">☰</div>
+            <div><div class="title">Phase opérateur</div><div class="meta">Prompt</div></div>
+          </div>
+          <div class="library-item" draggable="true" data-color="#a855f7" data-icon="⚡" data-name="Phase instrument" data-desc="Commande instrument">
+            <div class="badge" style="background:#a855f7;">⚡</div>
+            <div><div class="title">Phase instrument</div><div class="meta">Action</div></div>
+          </div>
+          <div class="library-item" draggable="true" data-color="#10b981" data-icon="⏳" data-name="Phase attente" data-desc="Temporisation">
+            <div class="badge" style="background:#10b981;">⏳</div>
+            <div><div class="title">Phase attente</div><div class="meta">Timer</div></div>
+          </div>
+          <div class="library-item" draggable="true" data-color="#14b8a6" data-icon="↺" data-name="Phase profil" data-desc="Profile / boucle">
+            <div class="badge" style="background:#14b8a6;">↺</div>
+            <div><div class="title">Phase profil</div><div class="meta">Ramp/loop</div></div>
+          </div>
+          <div class="library-item" draggable="true" data-color="#ef4444" data-icon="■" data-name="End" data-desc="Fin de recette">
+            <div class="badge" style="background:#ef4444;">■</div>
+            <div><div class="title">End</div><div class="meta">Terminaison</div></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <footer>
+      <div class="timeline">
+        <button class="circle-btn">⏯</button>
+        <button class="circle-btn">⏹</button>
+        <button class="circle-btn">↶</button>
+        <button class="circle-btn">↷</button>
+      </div>
+      <div class="pill-btn">Prévisualisation rapide</div>
+    </footer>
+  </div>
+
+  <button class="ai-toggle" id="aiToggle">Assistant IA</button>
+  <div class="ai-panel" id="aiPanel">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <h4>Assistant IA Recette</h4>
+      <button class="pill-btn" style="padding:6px 10px;background:#0f172a;border-color:rgba(255,255,255,0.1);color:#fff;" onclick="toggleAI()">✕</button>
+    </div>
+    <div class="ai-actions">
+      <div class="ai-chip" data-action="summary">Synthèse PDF</div>
+      <div class="ai-chip" data-action="generate">Générer une recette</div>
+      <div class="ai-chip" data-action="steps">Compléter les étapes</div>
+      <div class="ai-chip" data-action="conditions">Conditions pO2</div>
+    </div>
+    <div class="ai-output" id="aiOutput">Prêt à aider : résumé, génération de phases, conditions et prompts opérateur.</div>
+    <div class="ai-input">
+      <input id="aiQuestion" type="text" placeholder="Pose une question : ex. boucle pO2 ?" />
+      <button onclick="askAI()">▶</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const linkLayer = document.getElementById('linkLayer');
+    const nodes = {};
+    const connections = [
+      { from: 'start', to: 'regule' }
+    ];
+
+    function createNode({ id, title, desc, color, icon, x, y }) {
+      const node = document.createElement('div');
+      node.className = 'node';
+      node.style.left = x + 'px';
+      node.style.top = y + 'px';
+      node.dataset.id = id;
+      node.innerHTML = `
+        <div class="icon" style="background:${color};">${icon}</div>
+        <div>
+          <div class="label">${title}</div>
+          <div class="desc">${desc || ''}</div>
+        </div>
+        <div class="handle"></div>
+      `;
+      canvas.appendChild(node);
+      nodes[id] = node;
+      makeDraggable(node);
+      updateLinks();
+    }
+
+    function makeDraggable(el) {
+      let offsetX = 0, offsetY = 0, dragging = false;
+      const onDown = (e) => {
+        dragging = true;
+        const rect = el.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+        el.style.zIndex = 5;
+      };
+      const onMove = (e) => {
+        if (!dragging) return;
+        const parentRect = canvas.getBoundingClientRect();
+        const x = e.clientX - parentRect.left - offsetX;
+        const y = e.clientY - parentRect.top - offsetY;
+        el.style.left = Math.max(12, x) + 'px';
+        el.style.top = Math.max(12, y) + 'px';
+        updateLinks();
+      };
+      const onUp = () => { dragging = false; el.style.zIndex = 1; };
+      el.addEventListener('mousedown', onDown);
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    }
+
+    function updateLinks() {
+      linkLayer.innerHTML = '';
+      connections.forEach(({ from, to }) => {
+        const a = nodes[from];
+        const b = nodes[to];
+        if (!a || !b) return;
+        const ar = a.getBoundingClientRect();
+        const br = b.getBoundingClientRect();
+        const pr = canvas.getBoundingClientRect();
+        const x1 = ar.left - pr.left + ar.width;
+        const y1 = ar.top - pr.top + ar.height / 2;
+        const x2 = br.left - pr.left;
+        const y2 = br.top - pr.top + br.height / 2;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const c1x = x1 + 60;
+        const c2x = x2 - 60;
+        path.setAttribute('d', `M ${x1} ${y1} C ${c1x} ${y1}, ${c2x} ${y2}, ${x2} ${y2}`);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', '#cdd4e0');
+        path.setAttribute('stroke-width', '3');
+        path.setAttribute('stroke-linecap', 'round');
+        linkLayer.appendChild(path);
+      });
+    }
+
+    const initialNodes = [
+      { id: 'start', title: 'Start', desc: 'Début batch', color: '#22c55e', icon: '▶', x: 320, y: 160 },
+      { id: 'regule', title: 'Régule pH', desc: 'pH setpoint 7', color: '#6ca8ff', icon: 'P', x: 520, y: 150 },
+      { id: 'prompt', title: 'Prompt', desc: 'Question opérateur', color: '#fbbf24', icon: '☰', x: 460, y: 260 },
+    ];
+    initialNodes.forEach(createNode);
+
+    document.querySelectorAll('.library-item').forEach(item => {
+      item.addEventListener('dragstart', (e) => {
+        const payload = {
+          name: item.dataset.name,
+          desc: item.dataset.desc,
+          color: item.dataset.color,
+          icon: item.dataset.icon
+        };
+        e.dataTransfer.setData('application/json', JSON.stringify(payload));
+      });
+    });
+
+    canvas.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+    canvas.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const data = e.dataTransfer.getData('application/json');
+      if (!data) return;
+      const payload = JSON.parse(data);
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left - 80;
+      const y = e.clientY - rect.top - 30;
+      const id = payload.name.toLowerCase().replace(/\\s+/g, '-') + '-' + Math.floor(Math.random() * 9999);
+      createNode({ id, title: payload.name, desc: payload.desc, color: payload.color, icon: payload.icon, x, y });
+    });
+
+    function toggleAI() {
+      document.getElementById('aiPanel').classList.toggle('active');
+    }
+    document.getElementById('aiToggle').addEventListener('click', toggleAI);
+
+    const aiOutput = document.getElementById('aiOutput');
+    const quickReplies = {
+      summary: `Résumé PDF (Recettes BioPAT):
+• Opérations : Preparation, Inoculation, Batch.
+• Preparation : Start → Set temp 37°C & pH 6.8 → Wait 30 min → End.
+• Inoculation : Start → Inoculate (semi-automatique) → End.
+• Batch : Start → attendre pO2 < 35% → Wait 1 min → re-vérifier pO2.
+• Condition A : pO2 < 35% ⇒ Activer contrôle pO2 (setpoint 35%) puis End.
+• Condition B : pO2 > 35% ⇒ boucle sur Wait 1 min.`,
+      generate: `Recette proposée :
+1) Preparation (auto)
+   - TEMP.State=remote | TEMP.Mode=auto | TEMP.Setpoint=37
+   - pH.State=remote | pH.Mode=auto | pH.Setpoint=6.8
+   - Wait 30 min
+2) Inoculation (semi-auto)
+   - Étape opérateur : inoculer la culture
+3) Batch (auto)
+   - Condition: pO2.Value < 35%
+   - Wait 1 min puis boucle
+   - Activer pO2 control : State=remote | Mode=auto | Setpoint=35
+4) End`,
+      steps: `Compléter les phases :
+- Ajouter Phase paramètre : “Set temperature and pH”
+- Ajouter Phase attente : “Wait 30 min”
+- Ajouter Phase opérateur : “Inoculate”
+- Ajouter Phase attente : “Wait 1 min”
+- Ajouter Phase paramètre : “Activate pO2 control”
+- Finir par End.`,
+      conditions: `Conditions pO2 (transition Batch):
+- Condition A : pO2.Value < 35% ⇒ “Activate pO2 control”
+- Condition B : pO2.Value > 35% ⇒ “Wait 1 min” (boucle)
+- Utiliser opérateur “<” et valeur 35 dans l’écran EDIT CONDITION.`
+    };
+
+    document.querySelectorAll('.ai-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const action = chip.dataset.action;
+        aiOutput.textContent = quickReplies[action] || 'Je prépare une réponse...';
+      });
+    });
+
+    function askAI() {
+      const q = document.getElementById('aiQuestion').value.trim();
+      if (!q) return;
+      aiOutput.textContent = `Réponse (démo IA) :\n• Question : ${q}\n• Suggestion : appliquer la logique Preparation/Inoculation/Batch.\n• Rappel : pO2 < 35% ⇒ contrôle pO2 (35%), sinon boucle Wait 1 min.`;
+    }
+  </script>
+</body>
+</html>

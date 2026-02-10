@@ -1,0 +1,2090 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Workflow — Recipe Builder + AI</title>
+  <style>
+    :root{
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --panel-2: #fbfbfc;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e7e9ee;
+      --shadow: 0 10px 30px rgba(15,23,42,.08);
+      --shadow-soft: 0 8px 18px rgba(15,23,42,.06);
+      --r-xl: 22px;
+      --r-lg: 18px;
+      --r-md: 14px;
+      --r-sm: 12px;
+      --pill: 999px;
+
+      --green: #22c55e;
+      --blue: #3b82f6;
+      --orange: #f59e0b;
+      --purple: #8b5cf6;
+      --red: #ef4444;
+      --gray: #94a3b8;
+
+      --focus: 0 0 0 4px rgba(59,130,246,.15);
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: var(--font);
+      color: var(--ink);
+      background: radial-gradient(1200px 600px at 30% -20%, rgba(59,130,246,.08), transparent 60%),
+                  radial-gradient(900px 500px at 80% 10%, rgba(34,197,94,.08), transparent 60%),
+                  var(--bg);
+      overflow:hidden;
+    }
+
+    /* Topbar */
+    .topbar{
+      height:64px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 10px 16px 10px 16px;
+    }
+    .top-left{
+      display:flex; align-items:center; gap:14px;
+    }
+    .logo{
+      width:34px;height:34px;
+      display:grid;place-items:center;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(59,130,246,.18), rgba(34,197,94,.14));
+      border: 1px solid rgba(148,163,184,.25);
+      box-shadow: var(--shadow-soft);
+    }
+    .brand{
+      font-weight:800; letter-spacing:.06em;
+      color:#111827;
+    }
+    .tabs{
+      display:flex; align-items:center; gap:8px;
+      margin-left:12px;
+    }
+    .tab{
+      display:flex; align-items:center; gap:8px;
+      padding: 8px 12px;
+      border-radius: var(--pill);
+      border: 1px solid transparent;
+      color: var(--muted);
+      background: transparent;
+      cursor:pointer;
+      transition: .15s ease;
+      user-select:none;
+      font-weight:600;
+    }
+    .tab:hover{ background: rgba(15,23,42,.04); }
+    .tab.active{
+      background: rgba(59,130,246,.08);
+      border-color: rgba(59,130,246,.20);
+      color:#0f172a;
+    }
+    .tab .dot{
+      width:10px;height:10px;border-radius:999px;
+      background: rgba(59,130,246,.85);
+      box-shadow: 0 0 0 4px rgba(59,130,246,.12);
+    }
+    .tab.plus{
+      width:36px; justify-content:center;
+      padding:8px 0;
+      background: rgba(15,23,42,.03);
+      border-color: rgba(148,163,184,.25);
+    }
+    .top-right{
+      display:flex; align-items:center; gap:10px; color: var(--muted);
+      font-weight:600;
+    }
+    .timer{
+      padding:8px 12px;
+      border-radius: var(--pill);
+      border:1px solid rgba(148,163,184,.25);
+      background: rgba(255,255,255,.7);
+      backdrop-filter: blur(10px);
+    }
+
+    /* App layout */
+    .app{
+      height: calc(100vh - 64px);
+      padding: 0 12px 12px 12px;
+      display:grid;
+      grid-template-columns: 86px 310px 210px 1fr 320px;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    /* Left icon rail */
+    .rail{
+      background: rgba(255,255,255,.65);
+      border: 1px solid rgba(148,163,184,.22);
+      border-radius: 42px;
+      box-shadow: var(--shadow-soft);
+      padding: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      justify-content:flex-start;
+      align-items:center;
+      position:relative;
+      overflow:hidden;
+    }
+    .rail::before{
+      content:"";
+      position:absolute; inset:-80px -60px auto auto;
+      width:180px; height:180px;
+      background: radial-gradient(circle at 30% 30%, rgba(59,130,246,.18), transparent 60%);
+      pointer-events:none;
+    }
+    .railbtn{
+      width:54px; height:54px;
+      border-radius: 20px;
+      border: 1px solid transparent;
+      background: transparent;
+      display:grid; place-items:center;
+      cursor:pointer;
+      transition:.14s ease;
+      color:#334155;
+      user-select:none;
+    }
+    .railbtn:hover{ background: rgba(15,23,42,.04); }
+    .railbtn.active{
+      background: rgba(59,130,246,.10);
+      border-color: rgba(59,130,246,.22);
+      box-shadow: 0 12px 22px rgba(59,130,246,.10);
+      color:#1d4ed8;
+    }
+    .railsep{ flex:1 }
+    .railsmall{
+      width:42px;height:42px;border-radius:16px;
+      background: rgba(15,23,42,.03);
+      border: 1px solid rgba(148,163,184,.20);
+    }
+
+    /* Panels */
+    .panel{
+      background: rgba(255,255,255,.78);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(148,163,184,.22);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-soft);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      min-height: 0;
+    }
+    .panel .ph{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(231,233,238,.9);
+      background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.6));
+    }
+    .title{
+      font-size: 13px;
+      font-weight: 800;
+      color:#0f172a;
+      display:flex; align-items:center; gap:10px;
+    }
+    .title .hint{
+      font-weight:700; color: var(--muted);
+      font-size: 12px;
+    }
+    .iconbtn{
+      width:34px;height:34px;border-radius: 12px;
+      border:1px solid rgba(148,163,184,.22);
+      background: rgba(255,255,255,.75);
+      cursor:pointer;
+      display:grid;place-items:center;
+      transition:.14s ease;
+    }
+    .iconbtn:hover{ box-shadow: var(--shadow-soft); }
+    .content{
+      padding: 12px 14px;
+      overflow:auto;
+      min-height:0;
+    }
+
+    /* Inputs */
+    .search{
+      display:flex; align-items:center; gap:8px;
+      padding: 10px 12px;
+      border-radius: var(--pill);
+      border: 1px solid rgba(148,163,184,.22);
+      background: rgba(255,255,255,.9);
+      box-shadow: 0 6px 14px rgba(15,23,42,.05);
+    }
+    .search input{
+      border:0; outline:0;
+      width:100%;
+      font-weight:650;
+      color:#0f172a;
+      background: transparent;
+    }
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      border-radius: var(--pill);
+      padding: 10px 12px;
+      border: 1px solid rgba(148,163,184,.22);
+      background: rgba(15,23,42,.92);
+      color:white;
+      font-weight:800;
+      cursor:pointer;
+      transition:.14s ease;
+      user-select:none;
+    }
+    .btn:hover{ transform: translateY(-1px); box-shadow: var(--shadow); }
+    .btn.secondary{
+      background: rgba(255,255,255,.9);
+      color:#0f172a;
+    }
+    .btn.ghost{
+      background: transparent;
+      color:#0f172a;
+    }
+    .btn.small{ padding: 8px 10px; font-weight:800; }
+    .pillrow{ display:flex; gap:10px; margin:10px 0 12px; }
+    .pill{
+      flex:1;
+      display:flex; align-items:center; gap:10px;
+      padding: 10px 12px;
+      border-radius: var(--pill);
+      border: 1px solid rgba(148,163,184,.22);
+      background: rgba(255,255,255,.75);
+      cursor:pointer;
+      font-weight:800;
+      color:#0f172a;
+      transition:.14s ease;
+      user-select:none;
+    }
+    .pill:hover{ box-shadow: var(--shadow-soft); }
+    .pill span{ font-weight:800; font-size:12px; color: var(--muted); margin-left:auto; }
+    .pill svg{ opacity:.9; }
+
+    /* Recipe list */
+    .list{ display:flex; flex-direction:column; gap:6px; }
+    .item{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 9px 10px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      cursor:pointer;
+      transition:.12s ease;
+      user-select:none;
+    }
+    .item:hover{
+      background: rgba(15,23,42,.03);
+      border-color: rgba(148,163,184,.18);
+    }
+    .item.active{
+      background: rgba(59,130,246,.08);
+      border-color: rgba(59,130,246,.25);
+    }
+    .item .name{
+      font-weight:850;
+      font-size: 13px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .badge{
+      font-size: 11px;
+      font-weight:900;
+      padding: 4px 8px;
+      border-radius: var(--pill);
+      border: 1px solid rgba(148,163,184,.22);
+      color:#0f172a;
+      background: rgba(255,255,255,.85);
+    }
+    .badge.ai{
+      border-color: rgba(139,92,246,.35);
+      background: rgba(139,92,246,.10);
+      color:#5b21b6;
+    }
+    .dots{
+      width:30px;height:30px;border-radius: 10px;
+      display:grid;place-items:center;
+      border: 1px solid transparent;
+      color: var(--muted);
+    }
+    .item:hover .dots{ border-color: rgba(148,163,184,.2); background: rgba(255,255,255,.8); }
+
+    .footerbtn{
+      margin-top:auto;
+      padding: 12px 14px;
+      border-top: 1px solid rgba(231,233,238,.9);
+      display:flex;
+      gap:10px;
+      background: linear-gradient(0deg, rgba(255,255,255,.9), rgba(255,255,255,.65));
+    }
+
+    /* Operations */
+    .oplist{ display:flex; flex-direction:column; gap:10px; }
+    .op{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      padding: 9px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(148,163,184,.18);
+      background: rgba(255,255,255,.75);
+      cursor:pointer;
+      transition:.12s ease;
+      user-select:none;
+    }
+    .op:hover{ box-shadow: var(--shadow-soft); }
+    .op.active{
+      border-color: rgba(139,92,246,.35);
+      box-shadow: 0 14px 24px rgba(139,92,246,.12);
+    }
+    .opnum{
+      width:26px;height:26px;border-radius:10px;
+      display:grid;place-items:center;
+      font-weight:900;
+      color:#fff;
+      background: rgba(15,23,42,.8);
+    }
+    .op.active .opnum{ background: rgba(139,92,246,.90); }
+    .opname{ font-weight:900; font-size:13px; }
+    .opsub{ font-size:12px; color: var(--muted); margin-top:2px; font-weight:650; }
+
+    .opadd{
+      border: 1px dashed rgba(148,163,184,.35);
+      background: rgba(255,255,255,.55);
+      color: var(--muted);
+      justify-content:center;
+    }
+
+    /* Canvas */
+    .canvasWrap{
+      position:relative;
+      background: rgba(255,255,255,.62);
+      border: 1px solid rgba(148,163,184,.22);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-soft);
+      overflow:hidden;
+      min-height:0;
+    }
+    .canvasHeader{
+      height:48px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(231,233,238,.9);
+      background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.55));
+    }
+    .breadcrumb{
+      display:flex; align-items:center; gap:10px;
+      font-weight:900;
+      color:#0f172a;
+      padding-left:10px;
+    }
+    .breadcrumb .crumb{
+      font-size: 13px;
+      color:#0f172a;
+    }
+    .preview{
+      display:flex; align-items:center; gap:8px;
+      padding: 7px 10px;
+      border-radius: var(--pill);
+      border: 1px solid rgba(148,163,184,.22);
+      background: rgba(255,255,255,.85);
+      font-weight:900;
+      cursor:pointer;
+    }
+
+    .canvas{
+      position:absolute;
+      inset:48px 0 0 0;
+      overflow:auto;
+    }
+    .stage{
+      position:relative;
+      width: 1600px;
+      height: 900px;
+      background:
+        radial-gradient(circle at 20% 25%, rgba(59,130,246,.05), transparent 55%),
+        radial-gradient(circle at 80% 40%, rgba(34,197,94,.05), transparent 55%),
+        radial-gradient(circle at 50% 80%, rgba(139,92,246,.04), transparent 55%);
+    }
+
+    /* SVG edges */
+    .edges{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+    }
+    .edges path{
+      fill:none;
+      stroke: rgba(148,163,184,.95);
+      stroke-width: 2.2;
+      stroke-linecap: round;
+    }
+
+    /* Node */
+    .node{
+      position:absolute;
+      min-width: 260px;
+      max-width: 320px;
+      padding: 12px 12px 12px 12px;
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(148,163,184,.22);
+      border-radius: 18px;
+      box-shadow: 0 16px 28px rgba(15,23,42,.10);
+      display:flex;
+      align-items:flex-start;
+      gap:12px;
+      cursor:grab;
+      user-select:none;
+      transition: .12s ease;
+    }
+    .node:hover{ transform: translateY(-1px); }
+    .node:active{ cursor:grabbing; }
+    .node.selected{
+      border-color: rgba(59,130,246,.35);
+      box-shadow: 0 22px 40px rgba(59,130,246,.14);
+    }
+    .nicon{
+      width:42px;height:42px;border-radius: 14px;
+      display:grid;place-items:center;
+      color:#fff;
+      flex: 0 0 auto;
+      box-shadow: 0 10px 22px rgba(15,23,42,.10);
+    }
+    .nbody{ flex:1; min-width:0; padding-top:2px; }
+    .ntitle{ font-weight:950; font-size: 14px; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .nsub{ margin-top:4px; font-weight:750; font-size:12px; color: var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ports{
+      position:absolute;
+      right:-8px;
+      top:50%;
+      transform: translateY(-50%);
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .port{
+      width:14px;height:14px;border-radius: 999px;
+      border: 2px solid rgba(148,163,184,.8);
+      background: rgba(255,255,255,.95);
+      box-shadow: 0 8px 16px rgba(15,23,42,.08);
+      cursor:pointer;
+      pointer-events:auto;
+    }
+    .port:hover{ border-color: rgba(59,130,246,.9); box-shadow: var(--shadow-soft); }
+    .ports.in{
+      left:-8px;
+      right:auto;
+    }
+    .port.glow{
+      border-color: rgba(59,130,246,.95);
+      box-shadow: 0 0 0 6px rgba(59,130,246,.12);
+    }
+
+    /* Bottom floating toolbar */
+    .floating{
+      position:absolute;
+      left:50%;
+      bottom:16px;
+      transform: translateX(-50%);
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding: 10px 12px;
+      border-radius: 18px;
+      border: 1px solid rgba(148,163,184,.22);
+      background: rgba(255,255,255,.86);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+    }
+    .tool{
+      width:36px;height:36px;border-radius: 14px;
+      border: 1px solid rgba(148,163,184,.2);
+      background: rgba(255,255,255,.9);
+      display:grid;place-items:center;
+      cursor:pointer;
+      transition:.12s ease;
+    }
+    .tool:hover{ transform: translateY(-1px); box-shadow: var(--shadow-soft); }
+    .tool.primary{
+      background: rgba(34,197,94,.12);
+      border-color: rgba(34,197,94,.25);
+      color:#16a34a;
+      font-weight:900;
+    }
+
+    /* Right panel: library + AI */
+    .section{
+      padding: 12px 14px;
+      border-top: 1px solid rgba(231,233,238,.9);
+      background: rgba(255,255,255,.5);
+    }
+    .liblist{ display:flex; flex-direction:column; gap:8px; }
+    .libitem{
+      display:flex; align-items:center; gap:10px;
+      padding: 10px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(148,163,184,.18);
+      background: rgba(255,255,255,.80);
+      cursor:grab;
+      user-select:none;
+      transition:.12s ease;
+    }
+    .libitem:hover{ box-shadow: var(--shadow-soft); transform: translateY(-1px); }
+    .libicon{
+      width:34px;height:34px;border-radius: 12px;
+      display:grid;place-items:center;
+      color:#fff;
+      box-shadow: 0 10px 18px rgba(15,23,42,.10);
+      flex:0 0 auto;
+    }
+    .libname{ font-weight:950; font-size: 13px; }
+    .libdesc{ margin-top:2px; font-size:12px; color: var(--muted); font-weight:700; }
+
+    .aiBox{
+      border-radius: 18px;
+      border: 1px solid rgba(139,92,246,.25);
+      background: radial-gradient(900px 260px at 15% -30%, rgba(139,92,246,.14), transparent 60%),
+                  rgba(255,255,255,.70);
+      padding: 12px;
+      box-shadow: 0 18px 30px rgba(139,92,246,.08);
+    }
+    .aiHead{
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:10px;
+    }
+    .aiTitle{
+      display:flex; align-items:center; gap:10px;
+      font-weight:950;
+      font-size: 13px;
+    }
+    .spark{
+      width:28px;height:28px;border-radius: 12px;
+      display:grid;place-items:center;
+      background: rgba(139,92,246,.16);
+      border: 1px solid rgba(139,92,246,.22);
+      color:#5b21b6;
+      box-shadow: 0 10px 20px rgba(139,92,246,.12);
+    }
+    .aiInput{
+      width:100%;
+      border-radius: 16px;
+      border: 1px solid rgba(148,163,184,.22);
+      background: rgba(255,255,255,.92);
+      padding: 10px 12px;
+      outline:none;
+      font-weight:750;
+    }
+    .aiInput:focus{ box-shadow: var(--focus); border-color: rgba(59,130,246,.35); }
+    .aiRow{ display:flex; gap:10px; margin-top:10px; }
+    .aiRow .btn{ flex:1; }
+    .aiOut{
+      margin-top:10px;
+      max-height: 170px;
+      overflow:auto;
+      padding: 10px 10px;
+      border-radius: 16px;
+      border: 1px solid rgba(148,163,184,.18);
+      background: rgba(255,255,255,.78);
+      color:#0f172a;
+      font-weight:700;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .aiOut .mut{ color: var(--muted); font-weight:700; }
+    .aiOut .chip{
+      display:inline-flex; align-items:center; gap:6px;
+      margin: 6px 6px 0 0;
+      padding: 6px 8px;
+      border-radius: var(--pill);
+      border: 1px solid rgba(148,163,184,.2);
+      background: rgba(15,23,42,.03);
+      font-weight:900;
+      cursor:pointer;
+      user-select:none;
+    }
+    .aiOut .chip:hover{ background: rgba(59,130,246,.08); border-color: rgba(59,130,246,.22); }
+    .aiOut code{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: rgba(15,23,42,.04);
+      padding: 2px 6px;
+      border-radius: 8px;
+      border: 1px solid rgba(148,163,184,.18);
+    }
+
+    /* Toast */
+    .toast{
+      position:fixed;
+      left: 16px;
+      bottom: 16px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(148,163,184,.22);
+      background: rgba(255,255,255,.85);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      font-weight:800;
+      color:#0f172a;
+      opacity:0;
+      transform: translateY(8px);
+      transition:.18s ease;
+      pointer-events:none;
+      max-width: 420px;
+    }
+    .toast.show{ opacity:1; transform: translateY(0); }
+
+    /* Modal */
+    .modal{
+      position:fixed; inset:0;
+      background: rgba(15,23,42,.45);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+    }
+    .modal.show{ display:flex; }
+    .card{
+      width:min(980px, 98vw);
+      height:min(620px, 92vh);
+      border-radius: 26px;
+      border: 1px solid rgba(148,163,184,.22);
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 26px 70px rgba(15,23,42,.22);
+      overflow:hidden;
+      display:grid;
+      grid-template-rows: 56px 1fr;
+    }
+    .cardhead{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(231,233,238,.9);
+      background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.7));
+    }
+    .cardbody{
+      padding: 14px;
+      overflow:auto;
+    }
+    .chat{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      height: 100%;
+    }
+    .bubble{
+      max-width: 78%;
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(148,163,184,.18);
+      background: rgba(15,23,42,.03);
+      font-weight:750;
+      line-height:1.35;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+    .bubble.me{
+      margin-left:auto;
+      background: rgba(59,130,246,.10);
+      border-color: rgba(59,130,246,.22);
+    }
+    .bubble.ai{
+      background: rgba(139,92,246,.08);
+      border-color: rgba(139,92,246,.22);
+    }
+    .chatbar{
+      margin-top:auto;
+      display:flex; gap:10px;
+      position:sticky;
+      bottom:0;
+      padding-top: 12px;
+      background: linear-gradient(180deg, transparent, rgba(255,255,255,.92) 35%, rgba(255,255,255,.96));
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px){
+      .app{ grid-template-columns: 86px 300px 1fr 320px; }
+      .opsPanel{ display:none; }
+    }
+    @media (max-width: 980px){
+      body{ overflow:auto; }
+      .app{ height:auto; grid-template-columns: 86px 1fr; grid-template-rows: auto auto auto; }
+      .recipesPanel, .rightPanel, .canvasWrap{ min-height: 520px; }
+      .canvasWrap{ grid-column: 2 / 3; }
+    }
+  </style>
+</head>
+<body>
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="top-left">
+      <div class="logo" title="Algo / Workflow">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M4 14c2.3 0 2.3-6 4.6-6s2.3 6 4.6 6S15.5 8 17.8 8 20 14 20 14" stroke="rgba(37,99,235,.95)" stroke-width="2.3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="brand">WORKFLOW</div>
+
+      <div class="tabs">
+        <div class="tab active" id="tabA"><span class="dot"></span> BioCat L1-1</div>
+        <div class="tab" id="tabB">L1-2</div>
+        <div class="tab plus" id="tabPlus" title="Nouveau workflow">+</div>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <div class="timer" id="clock">9/18/16&nbsp;&nbsp;00h30m</div>
+    </div>
+  </div>
+
+  <!-- APP GRID -->
+  <div class="app">
+    <!-- LEFT RAIL -->
+    <div class="rail">
+      <div class="railbtn" title="Accueil">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3l9 7v11a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2V10l9-7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      </div>
+
+      <div class="railbtn" title="Recettes">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M7 3h10v18H7z" stroke="currentColor" stroke-width="2"/>
+          <path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="railbtn active" title="Workflow">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M5 7h6v6H5zM13 11h6v6h-6z" stroke="currentColor" stroke-width="2" />
+          <path d="M11 10h2M12 13v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="railbtn" title="Analytics">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M4 19V5M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M7 15l3-4 3 2 4-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+
+      <div class="railsep"></div>
+
+      <div class="railbtn railsmall" title="Profil">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M20 21a8 8 0 1 0-16 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 13a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </div>
+
+      <div class="railbtn railsmall" title="Réglages">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M12 15a3 3 0 1 0-3-3 3 3 0 0 0 3 3Z" stroke="currentColor" stroke-width="2"/>
+          <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.06.06-1.7 2.95-0.08-.03a2 2 0 0 0-2.02.48l-.05.05-3.4-1.96a7.4 7.4 0 0 1-1.14 0L8 21.5l-.05-.05a2 2 0 0 0-2.02-.48l-.08.03-1.7-2.95.06-.06A1.8 1.8 0 0 0 4.6 15l-.02-.08L2 12.5l2.58-2.42.02-.08A1.8 1.8 0 0 0 4.24 8l-.06-.06 1.7-2.95.08.03a2 2 0 0 0 2.02-.48L8 4.5l3.4 1.96a7.4 7.4 0 0 1 1.14 0L16 4.5l.05.05a2 2 0 0 0 2.02.48l.08-.03 1.7 2.95-.06.06A1.8 1.8 0 0 0 19.4 10l.02.08L22 12.5l-2.58 2.42Z"
+                stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" opacity=".9"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- RECIPES -->
+    <div class="panel recipesPanel">
+      <div class="ph">
+        <div class="title">
+          <span>Recette</span>
+          <span class="hint" id="recipeCount">—</span>
+        </div>
+        <button class="iconbtn" id="recipesMenu" title="Options">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M6 6h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+            <path d="M6 18h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="content" style="display:flex;flex-direction:column;min-height:0;">
+        <div class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M21 21l-4.2-4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <input id="recipeSearch" placeholder="Recette" />
+        </div>
+
+        <div style="margin-top:10px;">
+          <button class="btn" style="width:100%;" id="newRecipeBtn">
+            New Recipe <span style="opacity:.9">+</span>
+          </button>
+        </div>
+
+        <div class="pillrow">
+          <div class="pill" id="toggleChecks">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M9 11l2 2 4-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7Z" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            Cases à cocher <span id="checksState">OFF</span>
+          </div>
+          <div class="pill" id="filterBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Filter
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px; margin: 4px 0 10px;">
+          <button class="btn secondary small" id="segMy" style="flex:1;">My Recipes</button>
+          <button class="btn ghost small" id="segAI" style="flex:1;">AI Recipes</button>
+        </div>
+
+        <div class="list" id="recipeList" style="min-height:0;"></div>
+
+        <div class="footerbtn">
+          <input type="file" id="importFile" accept="application/json" hidden />
+          <button class="btn secondary" style="flex:1;" id="importBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3v10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M8 9l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 17a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Import Recipe
+          </button>
+          <button class="btn secondary" id="exportBtn" title="Exporter JSON">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 21V11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M16 15l-4-4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 7a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPERATIONS -->
+    <div class="panel opsPanel">
+      <div class="ph">
+        <div class="title">Operation</div>
+        <button class="iconbtn" id="opMenu" title="Options">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+          </svg>
+        </button>
+      </div>
+      <div class="content">
+        <div class="oplist" id="opList"></div>
+      </div>
+    </div>
+
+    <!-- CANVAS -->
+    <div class="canvasWrap">
+      <div class="canvasHeader">
+        <div class="breadcrumb">
+          <span class="crumb" id="crumb">1. Preparation</span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="preview" id="previewBtn" title="Aperçu / Lecture">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M8 5v14l11-7-11-7Z" fill="currentColor"/>
+            </svg>
+            Aperçu
+          </button>
+          <button class="iconbtn" id="aiCopilotBtn" title="AI Copilot">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2l1.6 4.6L18 8.2l-4.4 1.6L12 14l-1.6-4.2L6 8.2l4.4-1.6L12 2Z" fill="rgba(139,92,246,.95)"/>
+              <path d="M19 13l.9 2.5L22 16.4l-2.1.8L19 19.5l-.8-2.3-2.1-.8 2.1-.9L19 13Z" fill="rgba(59,130,246,.85)"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="canvas" id="canvas">
+        <div class="stage" id="stage">
+          <svg class="edges" id="edges" width="100%" height="100%" viewBox="0 0 1600 900" preserveAspectRatio="none"></svg>
+
+          <div class="floating">
+            <div class="tool" id="zoomOut" title="Zoom -">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M5 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M21 21l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="tool" id="zoomIn" title="Zoom +">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M8 12h6M11 9v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M21 21l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="tool primary" id="run" title="Run (démo)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M9 7v10l8-5-8-5Z" fill="currentColor"/>
+              </svg>
+            </div>
+            <div class="tool" id="undo" title="Undo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M9 14l-4-4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M20 20a9 9 0 0 0-9-9H5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="tool" id="redo" title="Redo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M15 6l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 20a9 9 0 0 1 9-9h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="tool" id="fit" title="Fit to view">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="panel rightPanel">
+      <div class="ph">
+        <div class="title">Library</div>
+        <button class="iconbtn" id="rightMenu" title="Options">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+            <path d="M12 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="content">
+        <div class="liblist" id="libList"></div>
+      </div>
+
+      <div class="section">
+        <div class="aiBox">
+          <div class="aiHead">
+            <div class="aiTitle">
+              <div class="spark">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2Z" fill="currentColor"/>
+                </svg>
+              </div>
+              AI Integrations
+            </div>
+            <span class="badge ai" title="Démo">LIVE (mock)</span>
+          </div>
+
+          <input class="aiInput" id="aiPrompt"
+                 placeholder="Ex: 'Batch + régulation pH 7, DO 30%, feed toutes les 2h, fin quand OD>20'" />
+
+          <div class="aiRow">
+            <button class="btn" id="aiGenerateBtn">Générer recette</button>
+            <button class="btn secondary" id="aiOptimizeBtn">Optimiser</button>
+          </div>
+
+          <div class="aiRow">
+            <button class="btn ghost" id="aiExplainBtn">Expliquer l’étape sélectionnée</button>
+            <button class="btn ghost" id="aiValidateBtn">Valider / QA</button>
+          </div>
+
+          <div class="aiOut" id="aiOut">
+            <div class="mut">Astuce: glisse un bloc depuis la Library → canvas. Clique une sortie → clique une entrée pour connecter.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Copilot Modal -->
+  <div class="modal" id="modal">
+    <div class="card">
+      <div class="cardhead">
+        <div class="title">
+          <span>AI Copilot</span>
+          <span class="hint">chat + actions sur recette</span>
+        </div>
+        <button class="iconbtn" id="closeModal" title="Fermer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="cardbody">
+        <div class="chat" id="chat">
+          <div class="bubble ai">Salut 👋 Décris ton objectif (organisme, setpoints, contraintes) et je te propose une recette + une checklist de risques.</div>
+          <div class="chatbar">
+            <input class="aiInput" id="chatInput" placeholder="Message… (ex: 'optimise la régulation pH/DO pour minimiser la mousse')" />
+            <button class="btn" id="chatSend">Envoyer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+/* -----------------------------
+   Luxe Workflow UI — Vanilla JS
+   - Recipes (My / AI)
+   - Node graph (drag, drop, connect)
+   - AI demo actions (mock + hook API)
+------------------------------*/
+
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
+
+const COLORS = {
+  start: "var(--green)",
+  parameter: "var(--blue)",
+  prompt: "var(--orange)",
+  instrument: "var(--purple)",
+  wait: "var(--gray)",
+  profile: "var(--green)",
+  end: "var(--red)"
+};
+
+const NODE_TYPES = {
+  start:      {label:"Start", subtitle:"", icon:"▶", color:COLORS.start},
+  parameter:  {label:"Parameter", subtitle:"Setpoint", icon:"P", color:COLORS.parameter},
+  prompt:     {label:"Prompt", subtitle:"Operator", icon:"✦", color:COLORS.prompt},
+  instrument: {label:"Instrument", subtitle:"Action", icon:"⟲", color:COLORS.instrument},
+  wait:       {label:"Wait", subtitle:"Timer", icon:"◷", color:COLORS.wait},
+  profile:    {label:"Profile", subtitle:"Ramp/curve", icon:"▱", color:COLORS.profile},
+  end:        {label:"End", subtitle:"Stop", icon:"■", color:COLORS.end},
+};
+
+const LIBRARY = [
+  {type:"start",      name:"Start",               desc:"Begin recipe"},
+  {type:"parameter",  name:"Parameter phase",     desc:"Setpoints / controls"},
+  {type:"prompt",     name:"Operator prompt",     desc:"Human validation / step"},
+  {type:"instrument", name:"Instrument phase",    desc:"Actuators, pumps, valves"},
+  {type:"wait",       name:"Wait phase",          desc:"Delay / time gate"},
+  {type:"profile",    name:"Profile phase",       desc:"Dynamic ramp / curve"},
+  {type:"end",        name:"End",                 desc:"Finish recipe"},
+];
+
+const defaultOps = [
+  {id:"op-1", title:"Preparation", subtitle:"Setup & media"},
+  {id:"op-2", title:"Inoculation", subtitle:"Seed / transfer"},
+  {id:"op-3", title:"Batch", subtitle:"Main process"},
+];
+
+function uid(prefix="id"){
+  return prefix + "-" + Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
+}
+
+function toast(msg){
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._tm);
+  toast._tm = setTimeout(()=>t.classList.remove("show"), 2400);
+}
+
+/* -----------------------------
+   Storage
+------------------------------*/
+const STORE_KEY = "workflow_luxe_v1";
+function loadStore(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
+function saveStore(){
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  }catch(_){}
+}
+
+/* -----------------------------
+   State
+------------------------------*/
+const state = loadStore() || {
+  ui: {
+    segment: "my", // my | ai
+    checks: false,
+    zoom: 1,
+    selectedOp: "op-1",
+    selectedNodeId: null
+  },
+  recipes: [
+    {
+      id:"r-grow-a",
+      name:"Grow-A",
+      isAI:false,
+      ops: JSON.parse(JSON.stringify(defaultOps)),
+      graph:{
+        nodes:[
+          {id:"n-start", type:"start", x:520, y:150, title:"Start", subtitle:""},
+          {id:"n-ph", type:"parameter", x:820, y:190, title:"Regule pH", subtitle:"pH Setpoint 7"},
+          {id:"n-prompt", type:"prompt", x:740, y:360, title:"Prompt", subtitle:"pH Setpoint 7"},
+        ],
+        edges:[
+          {id:"e-1", from:"n-start", to:"n-ph"}
+        ]
+      }
+    },
+    { id:"r-grow-b", name:"Grow-B", isAI:false, ops: JSON.parse(JSON.stringify(defaultOps)), graph:{nodes:[{id:uid("n"),type:"start",x:520,y:160,title:"Start",subtitle:""}],edges:[]} },
+    { id:"r-feed-1", name:"Feed-1", isAI:false, ops: JSON.parse(JSON.stringify(defaultOps)), graph:{nodes:[{id:uid("n"),type:"start",x:520,y:160,title:"Start",subtitle:""}],edges:[]} },
+    { id:"r-mix-1",  name:"Mix-1",  isAI:false, ops: JSON.parse(JSON.stringify(defaultOps)), graph:{nodes:[{id:uid("n"),type:"start",x:520,y:160,title:"Start",subtitle:""}],edges:[]} },
+    { id:"r-o2opt",  name:"O₂-Opt", isAI:false, ops: JSON.parse(JSON.stringify(defaultOps)), graph:{nodes:[{id:uid("n"),type:"start",x:520,y:160,title:"Start",subtitle:""}],edges:[]} },
+    { id:"r-base-1", name:"Base-1", isAI:false, ops: JSON.parse(JSON.stringify(defaultOps)), graph:{nodes:[{id:uid("n"),type:"start",x:520,y:160,title:"Start",subtitle:""}],edges:[]} },
+    {
+      id:"r-ai-demo",
+      name:"AI—FedBatch Smart",
+      isAI:true,
+      ops: JSON.parse(JSON.stringify(defaultOps)),
+      graph:{
+        nodes:[
+          {id:uid("n"), type:"start", x:420, y:160, title:"Start", subtitle:""},
+          {id:uid("n"), type:"parameter", x:700, y:180, title:"Regule DO", subtitle:"DO Setpoint 30%"},
+          {id:uid("n"), type:"profile", x:980, y:205, title:"Profile Feed", subtitle:"ramp 0→8 g/L/h"},
+          {id:uid("n"), type:"instrument", x:1260, y:255, title:"Pump Feed", subtitle:"PWM / mL/min"},
+          {id:uid("n"), type:"end", x:1460, y:270, title:"End", subtitle:"Stop"},
+        ],
+        edges:[]
+      }
+    }
+  ],
+  currentRecipeId: "r-grow-a",
+  history: [],
+  future: []
+};
+
+/* -----------------------------
+   Helpers
+------------------------------*/
+function currentRecipe(){
+  return state.recipes.find(r => r.id === state.currentRecipeId) || state.recipes[0];
+}
+function setCurrentRecipe(id){
+  state.currentRecipeId = id;
+  state.ui.selectedNodeId = null;
+  connectMode.fromNodeId = null;
+  connectMode.fromSide = null;
+  saveStore();
+  renderAll();
+  toast("Recette chargée.");
+}
+function pushHistory(snapshotLabel="change"){
+  const snap = JSON.stringify({recipes: state.recipes, currentRecipeId: state.currentRecipeId, ui: {...state.ui}});
+  state.history.push({label:snapshotLabel, snap});
+  if(state.history.length > 50) state.history.shift();
+  state.future = [];
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function cssEscapeValue(v){
+  const s = String(v);
+  if(window.CSS && typeof CSS.escape === "function") return CSS.escape(s);
+  return s.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+}
+
+/* -----------------------------
+   Render: Library
+------------------------------*/
+function renderLibrary(){
+  const root = $("#libList");
+  root.innerHTML = "";
+  LIBRARY.forEach(item=>{
+    const meta = NODE_TYPES[item.type];
+    const el = document.createElement("div");
+    el.className = "libitem";
+    el.draggable = true;
+    el.dataset.type = item.type;
+    el.innerHTML = `
+      <div class="libicon" style="background:${meta.color}">
+        <span style="font-weight:950">${meta.icon}</span>
+      </div>
+      <div style="min-width:0">
+        <div class="libname">${item.name}</div>
+        <div class="libdesc">${item.desc}</div>
+      </div>
+    `;
+    el.addEventListener("dragstart", (e)=>{
+      e.dataTransfer.setData("text/plain", JSON.stringify({kind:"library", type:item.type}));
+      e.dataTransfer.effectAllowed = "copy";
+    });
+    root.appendChild(el);
+  });
+}
+
+/* -----------------------------
+   Render: Ops
+------------------------------*/
+function renderOps(){
+  const recipe = currentRecipe();
+  const root = $("#opList");
+  root.innerHTML = "";
+  (recipe.ops || defaultOps).forEach((op, i)=>{
+    const el = document.createElement("div");
+    const active = (state.ui.selectedOp === op.id);
+    el.className = "op" + (active ? " active" : "");
+    el.innerHTML = `
+      <div class="opnum">${i+1}</div>
+      <div style="min-width:0">
+        <div class="opname">${escapeHtml(op.title)}</div>
+        <div class="opsub">${escapeHtml(op.subtitle || "")}</div>
+      </div>
+    `;
+    el.addEventListener("click", ()=>{
+      state.ui.selectedOp = op.id;
+      $("#crumb").textContent = (i+1) + ". " + op.title;
+      saveStore();
+      renderOps();
+    });
+    root.appendChild(el);
+  });
+
+  const add = document.createElement("div");
+  add.className = "op opadd";
+  add.innerHTML = `<strong style="font-weight:950">+</strong>&nbsp;Ajouter une phase`;
+  add.addEventListener("click", ()=>{
+    pushHistory("add phase");
+    const name = prompt("Nom de la phase ?", "New phase");
+    if(!name) return;
+    currentRecipe().ops.push({id:uid("op"), title:name, subtitle:""});
+    saveStore();
+    renderAll();
+    toast("Phase ajoutée.");
+  });
+  root.appendChild(add);
+
+  // crumb
+  const idx = (recipe.ops || []).findIndex(o=>o.id===state.ui.selectedOp);
+  if(idx >= 0) $("#crumb").textContent = (idx+1) + ". " + recipe.ops[idx].title;
+}
+
+/* -----------------------------
+   Render: Recipes list
+------------------------------*/
+function renderRecipes(){
+  $("#checksState").textContent = state.ui.checks ? "ON" : "OFF";
+
+  const q = ($("#recipeSearch").value || "").toLowerCase().trim();
+  const segment = state.ui.segment; // my|ai
+  const list = $("#recipeList");
+  const recipes = state.recipes
+    .filter(r => segment === "ai" ? r.isAI : !r.isAI)
+    .filter(r => !q || r.name.toLowerCase().includes(q));
+
+  $("#recipeCount").textContent = `${recipes.length}`;
+
+  list.innerHTML = "";
+  recipes.forEach(r=>{
+    const el = document.createElement("div");
+    el.className = "item" + (r.id === state.currentRecipeId ? " active" : "");
+    el.innerHTML = `
+      <div class="name">
+        ${escapeHtml(r.name)}
+        ${r.isAI ? `<span class="badge ai">AI</span>` : ``}
+      </div>
+      <div class="dots" title="Menu">···</div>
+    `;
+    el.addEventListener("click", ()=> setCurrentRecipe(r.id));
+    el.querySelector(".dots").addEventListener("click", (ev)=>{
+      ev.stopPropagation();
+      recipeContextMenu(r.id);
+    });
+    list.appendChild(el);
+  });
+}
+
+function recipeContextMenu(id){
+  const r = state.recipes.find(x=>x.id===id);
+  if(!r) return;
+  const action = prompt(
+    `Recette: ${r.name}\nActions: rename | duplicate | delete`,
+    "rename"
+  );
+  if(!action) return;
+  pushHistory("recipe action");
+
+  if(action.toLowerCase().startsWith("ren")){
+    const name = prompt("Nouveau nom:", r.name);
+    if(name){ r.name = name; }
+  }else if(action.toLowerCase().startsWith("dup")){
+    const copy = JSON.parse(JSON.stringify(r));
+    copy.id = uid("r");
+    copy.name = r.name + " (copy)";
+    state.recipes.unshift(copy);
+    state.currentRecipeId = copy.id;
+  }else if(action.toLowerCase().startsWith("del")){
+    if(confirm("Supprimer cette recette ?")){
+      state.recipes = state.recipes.filter(x=>x.id!==id);
+      if(state.currentRecipeId === id){
+        state.currentRecipeId = state.recipes[0]?.id || null;
+      }
+    }
+  }
+  saveStore();
+  renderAll();
+}
+
+/* -----------------------------
+   Graph: render nodes + edges
+------------------------------*/
+let connectMode = { fromNodeId:null, fromSide:null }; // side: "out"
+
+function renderGraph(){
+  const recipe = currentRecipe();
+  const stage = $("#stage");
+  // remove existing nodes (keep svg + toolbar)
+  $$(".node", stage).forEach(n=>n.remove());
+
+  (recipe.graph.nodes || []).forEach(node=>{
+    const meta = NODE_TYPES[node.type] || NODE_TYPES.parameter;
+    const el = document.createElement("div");
+    el.className = "node" + (state.ui.selectedNodeId === node.id ? " selected" : "");
+    el.style.left = node.x + "px";
+    el.style.top  = node.y + "px";
+    el.dataset.id = node.id;
+
+    el.innerHTML = `
+      <div class="ports in"><div class="port" data-port="in" title="Entrée"></div></div>
+      <div class="nicon" style="background:${meta.color}"><span style="font-weight:950">${meta.icon}</span></div>
+      <div class="nbody">
+        <div class="ntitle">${escapeHtml(node.title || meta.label)}</div>
+        <div class="nsub">${escapeHtml(node.subtitle || meta.subtitle || "")}</div>
+      </div>
+      <div class="ports out"><div class="port" data-port="out" title="Sortie"></div></div>
+    `;
+
+    el.addEventListener("mousedown", (e)=>{
+      if(e.target.classList.contains("port")) return;
+      selectNode(node.id);
+    });
+
+    makeDraggable(el, node);
+
+    const portIn = el.querySelector('.port[data-port="in"]');
+    const portOut = el.querySelector('.port[data-port="out"]');
+
+    portOut.addEventListener("click", (e)=>{
+      e.stopPropagation();
+      connectMode.fromNodeId = node.id;
+      connectMode.fromSide = "out";
+      clearPortGlow();
+      portOut.classList.add("glow");
+      toast("Sélection sortie → clique une entrée pour connecter.");
+    });
+
+    portIn.addEventListener("click", (e)=>{
+      e.stopPropagation();
+      if(connectMode.fromNodeId && connectMode.fromSide === "out" && connectMode.fromNodeId !== node.id){
+        pushHistory("connect");
+        recipe.graph.edges.push({id: uid("e"), from: connectMode.fromNodeId, to: node.id});
+        connectMode.fromNodeId = null;
+        connectMode.fromSide = null;
+        clearPortGlow();
+        saveStore();
+        redrawEdges();
+        toast("Connecté.");
+      }else{
+        toast("Clique d’abord sur une sortie.");
+      }
+    });
+
+    el.addEventListener("dblclick", ()=>{
+      pushHistory("edit node");
+      const t = prompt("Titre du node :", node.title || meta.label);
+      if(t === null) return;
+      const s = prompt("Sous-titre :", node.subtitle || "");
+      node.title = t;
+      node.subtitle = (s === null) ? node.subtitle : s;
+      saveStore();
+      renderGraph();
+      redrawEdges();
+    });
+
+    stage.appendChild(el);
+  });
+
+  redrawEdges();
+}
+
+function clearPortGlow(){
+  $$(".port.glow").forEach(p=>p.classList.remove("glow"));
+}
+
+function selectNode(id){
+  state.ui.selectedNodeId = id;
+  saveStore();
+  renderGraph();
+  const node = currentRecipe().graph.nodes.find(n=>n.id===id);
+  if(node) toast(`Node sélectionné: ${node.title}`);
+}
+
+function getNodeEl(id){
+  return $(`.node[data-id="${cssEscapeValue(id)}"]`, $("#stage"));
+}
+
+function getPortCenter(nodeEl, portSel){
+  const stage = $("#stage");
+  const port = nodeEl.querySelector(portSel);
+  const r = port.getBoundingClientRect();
+  const sr = stage.getBoundingClientRect();
+  const x = (r.left + r.width/2) - sr.left;
+  const y = (r.top + r.height/2) - sr.top;
+  return {x, y};
+}
+
+function redrawEdges(){
+  const svg = $("#edges");
+  const recipe = currentRecipe();
+  svg.innerHTML = "";
+
+  (recipe.graph.edges || []).forEach(edge=>{
+    const fromEl = getNodeEl(edge.from);
+    const toEl   = getNodeEl(edge.to);
+    if(!fromEl || !toEl) return;
+
+    const a = getPortCenter(fromEl, '.ports.out .port');
+    const b = getPortCenter(toEl,   '.ports.in .port');
+
+    const dx = Math.max(60, Math.abs(b.x - a.x) * 0.45);
+    const c1 = {x: a.x + dx, y: a.y};
+    const c2 = {x: b.x - dx, y: b.y};
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`);
+    svg.appendChild(path);
+  });
+}
+
+/* -----------------------------
+   Dragging nodes
+------------------------------*/
+function makeDraggable(el, node){
+  let dragging = false;
+  let start = {x:0,y:0};
+  let origin = {x:0,y:0};
+
+  const onDown = (e)=>{
+    if(e.button !== 0) return;
+    if(e.target.classList.contains("port")) return;
+
+    dragging = true;
+    start = {x: e.clientX, y: e.clientY};
+    origin = {x: node.x, y: node.y};
+    try{ el.setPointerCapture(e.pointerId); }catch(_){}
+    e.preventDefault();
+  };
+  const onMove = (e)=>{
+    if(!dragging) return;
+    const dx = (e.clientX - start.x);
+    const dy = (e.clientY - start.y);
+    node.x = Math.round(origin.x + dx);
+    node.y = Math.round(origin.y + dy);
+    el.style.left = node.x + "px";
+    el.style.top  = node.y + "px";
+    redrawEdges();
+  };
+  const onUp = ()=>{
+    if(!dragging) return;
+    dragging = false;
+    saveStore();
+  };
+
+  el.addEventListener("pointerdown", onDown);
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+}
+
+/* -----------------------------
+   Canvas drop: create node
+------------------------------*/
+function canvasDropSetup(){
+  const stage = $("#stage");
+
+  stage.addEventListener("click", (e)=>{
+    if(e.target.closest(".node")) return;
+    state.ui.selectedNodeId = null;
+    connectMode.fromNodeId = null;
+    connectMode.fromSide = null;
+    clearPortGlow();
+    saveStore();
+    renderGraph();
+  });
+
+  stage.addEventListener("dragover", (e)=>{
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  });
+
+  stage.addEventListener("drop", (e)=>{
+    e.preventDefault();
+    let data = null;
+    try{ data = JSON.parse(e.dataTransfer.getData("text/plain")); }catch(_){}
+    if(!data || data.kind !== "library") return;
+
+    pushHistory("add node");
+    const rect = stage.getBoundingClientRect();
+    const x = Math.round((e.clientX - rect.left));
+    const y = Math.round((e.clientY - rect.top));
+
+    const meta = NODE_TYPES[data.type] || NODE_TYPES.parameter;
+    const node = {
+      id: uid("n"),
+      type: data.type,
+      x: clamp(x, 30, 1500),
+      y: clamp(y, 30, 850),
+      title: meta.label,
+      subtitle: meta.subtitle || ""
+    };
+
+    currentRecipe().graph.nodes.push(node);
+    state.ui.selectedNodeId = node.id;
+    saveStore();
+    renderGraph();
+    toast(`Ajout: ${meta.label}`);
+  });
+}
+
+/* -----------------------------
+   AI (mock) + API hook
+------------------------------*/
+const MANUAL_PDF_FILE = "manual_biopat_mfcs_4_recipe_sbi6030-e200605.pdf";
+function openManualPdf(){
+  try{
+    window.open(MANUAL_PDF_FILE, "_blank", "noopener");
+  }catch(_){
+    toast("Impossible d'ouvrir le PDF.");
+  }
+}
+function biopatPdfPlan(){
+  // Based on the BioPAT MFCS 4 manual example (pO2 loop @ 35%).
+  return [
+    {type:"start", title:"Start", subtitle:"Begin batch"},
+    {type:"parameter", title:"Set T & pH", subtitle:"T=37C; pH=6.8 (example)"},
+    {type:"wait", title:"Wait 30 min", subtitle:"Stabilization"},
+    {type:"prompt", title:"Inoculation", subtitle:"Operator prompt: inoculate"},
+    {type:"wait", title:"Wait 1 min", subtitle:"Loop check pO2"},
+    {type:"parameter", title:"Condition", subtitle:"A: pO2.Value < 35% -> activate; B: pO2.Value > 35% -> repeat wait"},
+    {type:"parameter", title:"Activate pO2 control", subtitle:"pO2.State=remote; pO2.Mode=auto; pO2.Setpoint=35"},
+    {type:"end", title:"End", subtitle:"Stop"}
+  ];
+}
+async function callAI({mode, prompt, context}){
+  // Hook ready: replace with your endpoint
+  // return fetch("/api/ai", {method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({mode, prompt, context})}).then(r=>r.json());
+
+  const p = (prompt||"").toLowerCase();
+  const selected = context?.selectedNode;
+  await new Promise(r=>setTimeout(r, 350));
+
+  if(mode === "explain" && selected){
+    return {
+      text: `📌 **${selected.title}** — objectif: stabiliser le paramètre ciblé.\n\n• Entrées: capteur(s) / setpoint\n• Action: PID / stratégie de contrôle\n• Risques: overshoot, délai, dérive capteur\n\n👉 Suggestion: ajoute une phase "Wait 2–5 min" après modification de setpoint, puis un contrôle de stabilité.`
+    };
+  }
+
+  if(mode === "validate"){
+    return {
+      text:
+`✅ QA rapide (démo)
+- Vérifie que chaque boucle de contrôle a un setpoint explicite.
+- Ajoute des "guard rails": limites (min/max), alarme, fallback.
+- Trace les KPI: pH, DO, T°, agitation, débit gaz, feed.
+- Ajoute conditions d’arrêt: temps max + seuil(s) process.`
+    };
+  }
+
+  if(mode === "optimize"){
+    return {
+      text:
+`⚙️ Optimisation (démo)
+1) Évite 2 régulations agressives en même temps (pH + DO + mousse).
+2) Priorise DO via agitation puis O₂, ensuite débit gaz.
+3) Ajoute rampes (Profile) plutôt que steps brusques.
+4) Ajoute un check opérateur avant feed si mousse/OD incertain.
+
+Chips:`,
+      chips: ["Ajouter ramp feed", "Ajout check mousse", "Limiter base/acid", "Condition fin OD"]
+    };
+  }
+
+  // generate recipe (default)
+  const plan = [];
+  const needPH = p.includes("ph");
+  const needDO = p.includes("do") || p.includes("oxygen") || p.includes("o2");
+  const needFeed = p.includes("feed") || p.includes("fed") || p.includes("glucose");
+  const needEndCond = p.includes("od") || p.includes("biomasse") || p.includes("condition");
+
+  plan.push({type:"start", title:"Start", subtitle:""});
+  if(needPH) plan.push({type:"parameter", title:"Regule pH", subtitle:"pH Setpoint 7"});
+  if(needDO) plan.push({type:"parameter", title:"Regule DO", subtitle:"DO Setpoint 30%"});
+  if(needFeed) plan.push({type:"profile", title:"Profile Feed", subtitle:"ramp 0→X g/L/h"});
+  if(needFeed) plan.push({type:"instrument", title:"Pump Feed", subtitle:"mL/min"});
+  plan.push({type:"prompt", title:"Checkpoint", subtitle:"Operator validation"});
+  plan.push({type:"wait", title:"Wait", subtitle:"2h / loop"});
+  if(needEndCond) plan.push({type:"parameter", title:"Stop condition", subtitle:"OD > threshold"});
+  plan.push({type:"end", title:"End", subtitle:"Stop"});
+
+  return {
+    text:
+`🧠 Proposition (démo)
+Je te génère une structure de recette basée sur ton prompt.
+
+Étapes: ${plan.map(x=>x.title).join(" → ")}
+
+Clique "Appliquer" pour créer la recette.`,
+    plan
+  };
+}
+
+function aiContext(){
+  const recipe = currentRecipe();
+  const selectedNode = recipe.graph.nodes.find(n=>n.id===state.ui.selectedNodeId) || null;
+  return {
+    recipe: {id: recipe.id, name: recipe.name},
+    selectedNode
+  };
+}
+
+function aiOutRender(payload){
+  const out = $("#aiOut");
+  out.innerHTML = "";
+  if(!payload) return;
+
+  const text = (payload.text || "").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br/>");
+  const p = document.createElement("div");
+  p.innerHTML = text;
+  out.appendChild(p);
+
+  if(payload.chips?.length){
+    const wrap = document.createElement("div");
+    payload.chips.forEach(label=>{
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = label;
+      chip.addEventListener("click", ()=> applyChip(label));
+      wrap.appendChild(chip);
+    });
+    out.appendChild(wrap);
+  }
+
+  if(payload.plan){
+    const row = document.createElement("div");
+    row.style.marginTop = "10px";
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    row.innerHTML = `
+      <button class="btn" id="applyPlan" style="flex:1;">Appliquer</button>
+      <button class="btn secondary" id="newAIRecipe" style="flex:1;">Créer comme AI Recipe</button>
+    `;
+    out.appendChild(row);
+
+    $("#applyPlan").addEventListener("click", ()=> applyPlan(payload.plan, {asNew:false}));
+    $("#newAIRecipe").addEventListener("click", ()=> applyPlan(payload.plan, {asNew:true}));
+  }
+}
+
+function applyChip(label){
+  pushHistory("ai chip");
+  const r = currentRecipe();
+  const y = 520;
+
+  if(label.toLowerCase().includes("ramp")){
+    r.graph.nodes.push({id:uid("n"), type:"profile", x:1080, y:y, title:"Profile Feed", subtitle:"ramp 0→8 g/L/h"});
+  }else if(label.toLowerCase().includes("mousse")){
+    r.graph.nodes.push({id:uid("n"), type:"prompt", x:840, y:y, title:"Check mousse", subtitle:"Operator confirm"});
+  }else if(label.toLowerCase().includes("limiter")){
+    r.graph.nodes.push({id:uid("n"), type:"parameter", x:560, y:y, title:"Limiter base/acid", subtitle:"min/max & alarms"});
+  }else if(label.toLowerCase().includes("condition")){
+    r.graph.nodes.push({id:uid("n"), type:"parameter", x:1240, y:y, title:"Condition fin", subtitle:"OD>20 or time max"});
+  }
+
+  saveStore();
+  renderGraph();
+  toast("Action appliquée.");
+}
+
+function applyPlan(plan, {asNew}){
+  pushHistory("ai apply plan");
+  const baseX = 380, baseY = 170, dx = 260;
+
+  const nodes = plan.map((p, i)=>({
+    id: uid("n"),
+    type: p.type,
+    x: clamp(baseX + i*dx, 30, 1500),
+    y: baseY + (i%2===0 ? 0 : 50),
+    title: p.title,
+    subtitle: p.subtitle || (NODE_TYPES[p.type]?.subtitle || "")
+  }));
+
+  const edges = [];
+  for(let i=0;i<nodes.length-1;i++){
+    edges.push({id: uid("e"), from: nodes[i].id, to: nodes[i+1].id});
+  }
+
+  if(asNew){
+    const name = "AI-" + ( ($("#aiPrompt").value || "Recipe").slice(0,18).trim() || "Recipe" );
+    const rec = {
+      id: uid("r"),
+      name,
+      isAI: true,
+      ops: JSON.parse(JSON.stringify(defaultOps)),
+      graph: {nodes, edges}
+    };
+    state.recipes.unshift(rec);
+    state.currentRecipeId = rec.id;
+    state.ui.segment = "ai";
+  }else{
+    const r = currentRecipe();
+    r.graph = {nodes, edges};
+  }
+
+  saveStore();
+  renderAll();
+  toast(asNew ? "AI Recipe créée." : "Recette appliquée.");
+}
+
+/* -----------------------------
+   Import / Export
+------------------------------*/
+function exportCurrent(){
+  const data = currentRecipe();
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (data.name || "recipe") + ".json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("Export JSON.");
+}
+function importRecipeFile(file){
+  const fr = new FileReader();
+  fr.onload = () => {
+    try{
+      const obj = JSON.parse(fr.result);
+      if(!obj || !obj.graph) throw new Error("Invalid recipe");
+      pushHistory("import");
+
+      obj.id = uid("r");
+      obj.isAI = !!obj.isAI;
+      obj.name = obj.name || "Imported";
+      obj.ops = obj.ops || JSON.parse(JSON.stringify(defaultOps));
+      obj.graph.nodes = obj.graph.nodes || [];
+      obj.graph.edges = obj.graph.edges || [];
+
+      state.recipes.unshift(obj);
+      state.currentRecipeId = obj.id;
+      saveStore();
+      renderAll();
+      toast("Import OK.");
+    }catch(e){
+      toast("Import échoué: JSON invalide.");
+    }
+  };
+  fr.readAsText(file);
+}
+
+/* -----------------------------
+   Undo / Redo
+------------------------------*/
+function undo(){
+  const last = state.history.pop();
+  if(!last){ toast("Rien à annuler."); return; }
+  const snapNow = JSON.stringify({recipes: state.recipes, currentRecipeId: state.currentRecipeId, ui: {...state.ui}});
+  state.future.push({label:last.label, snap:snapNow});
+  const restored = JSON.parse(last.snap);
+  state.recipes = restored.recipes;
+  state.currentRecipeId = restored.currentRecipeId;
+  state.ui = restored.ui;
+  saveStore();
+  renderAll();
+  toast("Undo.");
+}
+function redo(){
+  const next = state.future.pop();
+  if(!next){ toast("Rien à refaire."); return; }
+  pushHistory("redo");
+  const restored = JSON.parse(next.snap);
+  state.recipes = restored.recipes;
+  state.currentRecipeId = restored.currentRecipeId;
+  state.ui = restored.ui;
+  saveStore();
+  renderAll();
+  toast("Redo.");
+}
+
+/* -----------------------------
+   Zoom / Fit
+------------------------------*/
+function setZoom(z){
+  state.ui.zoom = clamp(z, 0.6, 1.35);
+  $("#stage").style.transformOrigin = "0 0";
+  $("#stage").style.transform = `scale(${state.ui.zoom})`;
+  saveStore();
+  redrawEdges();
+}
+function fitToView(){
+  setZoom(1);
+  const canvas = $("#canvas");
+  canvas.scrollTo({left: 240, top: 80, behavior:"smooth"});
+  toast("Fit.");
+}
+
+/* -----------------------------
+   Preview (demo)
+------------------------------*/
+function previewRun(){
+  const r = currentRecipe();
+  const order = topologicalIsh(r.graph);
+  const msg = `Run (démo): ${order.map(n=>n.title).join(" → ")}`;
+  toast(msg);
+}
+function topologicalIsh(graph){
+  const nodesById = Object.fromEntries((graph.nodes||[]).map(n=>[n.id,n]));
+  const out = [];
+  const start = (graph.nodes||[]).find(n=>n.type==="start") || (graph.nodes||[])[0];
+  if(!start) return [];
+  out.push(start);
+  let cur = start.id;
+  const visited = new Set([cur]);
+  for(let i=0;i<(graph.nodes||[]).length+2;i++){
+    const e = (graph.edges||[]).find(x=>x.from===cur);
+    if(!e) break;
+    cur = e.to;
+    if(visited.has(cur)) break;
+    visited.add(cur);
+    out.push(nodesById[cur]);
+  }
+  (graph.nodes||[]).forEach(n=>{ if(!visited.has(n.id)) out.push(n); });
+  return out.filter(Boolean);
+}
+
+/* -----------------------------
+   Modal Copilot Chat
+------------------------------*/
+function openModal(){ $("#modal").classList.add("show"); }
+function closeModal(){ $("#modal").classList.remove("show"); }
+function addBubble(text, who="ai"){
+  const chat = $("#chat");
+  const b = document.createElement("div");
+  b.className = "bubble " + who;
+  b.textContent = text;
+  chat.insertBefore(b, chat.querySelector(".chatbar"));
+  b.scrollIntoView({behavior:"smooth", block:"end"});
+}
+async function sendChat(){
+  const input = $("#chatInput");
+  const txt = input.value.trim();
+  if(!txt) return;
+  addBubble(txt, "me");
+  input.value = "";
+  const payload = await callAI({mode:"chat", prompt: txt, context: aiContext()});
+  addBubble(payload?.text ? payload.text : "Je peux te proposer une version 'safety-first' + une version 'performance-first'.", "ai");
+}
+
+/* -----------------------------
+   Render all
+------------------------------*/
+function renderAll(){
+  renderLibrary();
+  renderRecipes();
+  renderOps();
+  renderGraph();
+
+  $("#segMy").className = "btn " + (state.ui.segment==="my" ? "secondary small" : "ghost small");
+  $("#segAI").className = "btn " + (state.ui.segment==="ai" ? "secondary small" : "ghost small");
+
+  setZoom(state.ui.zoom || 1);
+}
+
+/* -----------------------------
+   UI bindings
+------------------------------*/
+function bindUI(){
+  // Tabs
+  $("#tabA").addEventListener("click", ()=>{
+    $("#tabA").classList.add("active");
+    $("#tabB").classList.remove("active");
+    toast("Workflow: BioCat L1-1");
+  });
+  $("#tabB").addEventListener("click", ()=>{
+    $("#tabB").classList.add("active");
+    $("#tabA").classList.remove("active");
+    toast("Workflow: L1-2 (démo)");
+  });
+  $("#tabPlus").addEventListener("click", ()=>{
+    toast("Nouveau workflow (démo)");
+  });
+
+  // Recipe search
+  $("#recipeSearch").addEventListener("input", renderRecipes);
+
+  // Segment
+  $("#segMy").addEventListener("click", ()=>{
+    state.ui.segment = "my";
+    saveStore(); renderRecipes();
+  });
+  $("#segAI").addEventListener("click", ()=>{
+    state.ui.segment = "ai";
+    saveStore(); renderRecipes();
+  });
+
+  // Pills / menus
+  $("#toggleChecks").addEventListener("click", ()=>{
+    state.ui.checks = !state.ui.checks;
+    saveStore();
+    renderRecipes();
+    toast(`Cases à cocher: ${state.ui.checks ? "ON" : "OFF"}`);
+  });
+  $("#filterBtn").addEventListener("click", ()=> toast("Filtres avancés (démo)"));
+  $("#recipesMenu").addEventListener("click", ()=> toast("Menu recettes (démo)"));
+  $("#opMenu").addEventListener("click", ()=> toast("Menu opérations (démo)"));
+  $("#rightMenu").addEventListener("click", ()=> toast("Menu library (démo)"));
+
+  // New recipe
+  $("#newRecipeBtn").addEventListener("click", ()=>{
+    pushHistory("new recipe");
+    const name = prompt("Nom de la recette ?", "New Recipe");
+    if(!name) return;
+    const rec = {
+      id: uid("r"),
+      name,
+      isAI: false,
+      ops: JSON.parse(JSON.stringify(defaultOps)),
+      graph: {
+        nodes: [{id: uid("n"), type:"start", x:520, y:160, title:"Start", subtitle:""}],
+        edges: []
+      }
+    };
+    state.recipes.unshift(rec);
+    state.currentRecipeId = rec.id;
+    state.ui.segment = "my";
+    saveStore();
+    renderAll();
+    toast("Recette créée.");
+  });
+
+  // Import / export
+  $("#exportBtn").addEventListener("click", exportCurrent);
+  $("#importBtn").addEventListener("click", ()=> $("#importFile").click());
+  $("#importFile").addEventListener("change", (e)=>{
+    const f = e.target.files?.[0];
+    if(f) importRecipeFile(f);
+    e.target.value = "";
+  });
+
+  // Preview / run
+  $("#previewBtn").addEventListener("click", previewRun);
+  $("#run").addEventListener("click", previewRun);
+
+  // Zoom / fit
+  $("#zoomIn").addEventListener("click", ()=> setZoom((state.ui.zoom||1) + 0.1));
+  $("#zoomOut").addEventListener("click", ()=> setZoom((state.ui.zoom||1) - 0.1));
+  $("#fit").addEventListener("click", fitToView);
+
+  // Undo/redo
+  $("#undo").addEventListener("click", undo);
+  $("#redo").addEventListener("click", redo);
+
+  // AI panel
+  const runAI = async (mode)=>{
+    try{
+      const prompt = ($("#aiPrompt").value || "").trim();
+      if(mode === "generate" && !prompt){
+        toast("Décris ton objectif dans le champ AI.");
+        $("#aiPrompt").focus();
+        return;
+      }
+      if(mode === "explain" && !state.ui.selectedNodeId){
+        toast("Sélectionne un node à expliquer.");
+        return;
+      }
+      const payload = await callAI({mode, prompt, context: aiContext()});
+      aiOutRender(payload);
+    }catch(e){
+      aiOutRender({text:"Erreur: impossible d'appeler l'IA (démo)."});
+    }
+  };
+
+  $("#aiGenerateBtn").addEventListener("click", ()=> runAI("generate"));
+  $("#aiOptimizeBtn").addEventListener("click", ()=> runAI("optimize"));
+  $("#aiExplainBtn").addEventListener("click", ()=> runAI("explain"));
+  $("#aiValidateBtn").addEventListener("click", ()=> runAI("validate"));
+  $("#aiPrompt").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){
+      e.preventDefault();
+      runAI("generate");
+    }
+  });
+
+  // Copilot modal (chat)
+  $("#aiCopilotBtn").addEventListener("click", ()=>{
+    openModal();
+    setTimeout(()=> $("#chatInput")?.focus(), 0);
+  });
+  $("#closeModal").addEventListener("click", closeModal);
+  $("#modal").addEventListener("click", (e)=>{
+    if(e.target === $("#modal")) closeModal();
+  });
+  $("#chatSend").addEventListener("click", sendChat);
+  $("#chatInput").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){
+      e.preventDefault();
+      sendChat();
+    }
+  });
+
+  // Shortcuts
+  document.addEventListener("keydown", (e)=>{
+    const tag = document.activeElement?.tagName;
+    const inField = tag === "INPUT" || tag === "TEXTAREA" || document.activeElement?.isContentEditable;
+
+    if(e.key === "Escape"){
+      const modal = $("#modal");
+      if(modal?.classList.contains("show")) closeModal();
+      connectMode.fromNodeId = null;
+      connectMode.fromSide = null;
+      clearPortGlow();
+      return;
+    }
+
+    const mod = e.ctrlKey || e.metaKey;
+    if(!mod || inField) return;
+
+    const k = (e.key || "").toLowerCase();
+    if(k === "z" && e.shiftKey){
+      e.preventDefault();
+      redo();
+    }else if(k === "z"){
+      e.preventDefault();
+      undo();
+    }else if(k === "y"){
+      e.preventDefault();
+      redo();
+    }
+  });
+
+  window.addEventListener("resize", redrawEdges);
+}
+
+/* -----------------------------
+   Boot
+------------------------------*/
+canvasDropSetup();
+bindUI();
+renderAll();
+toast("Prêt.");
+</script>
+</body>
+</html>
