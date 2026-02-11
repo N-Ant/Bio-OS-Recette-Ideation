@@ -341,8 +341,39 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
               {/* Inline FormulaEditor when in calculation mode */}
               {mode === 'calculation' && expandedFormulaIdx === i && (() => {
                 const compatUnits = getCompatibleUnits(sp.formula || '', activeUnits);
+                // Detect if this calc was imported from library and if it diverged
+                const sourceCalc = namedCalcs.find(c => c.name === sp.formulaName);
+                const isFromLibrary = !!sourceCalc;
+                const hasNameChanged = isFromLibrary && sp.formulaName !== sourceCalc.name;
+                const hasFormulaChanged = isFromLibrary && sp.formula !== sourceCalc.formula;
+                const hasDiverged = isFromLibrary && (hasNameChanged || hasFormulaChanged);
                 return (
                 <div className="ml-2 space-y-2 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                  {/* Status banner */}
+                  {isFromLibrary && !hasDiverged && (
+                    <div className="flex items-center gap-2 text-[11px] bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 text-blue-700">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                      <span>Lié à <strong>{sourceCalc.name}</strong> (Bibliothèque) — Les modifications ici seront locales à ce setpoint</span>
+                    </div>
+                  )}
+                  {isFromLibrary && hasDiverged && (
+                    <div className="flex items-center justify-between gap-2 text-[11px] bg-amber-50 border border-amber-300 rounded-lg px-2.5 py-1.5 text-amber-800">
+                      <div className="flex items-center gap-2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        <span>Modifié par rapport à <strong>{sourceCalc.name}</strong> — Ce calcul diverge de la bibliothèque</span>
+                      </div>
+                      <button
+                        onClick={() => updateSetpoint(i, { formulaName: sourceCalc.name, formula: sourceCalc.formula, formulaDescription: sourceCalc.description || '', resultLimitation: sourceCalc.resultLimitation || false, resultMin: sourceCalc.resultMin ?? 0, resultMax: sourceCalc.resultMax ?? 100 } as any)}
+                        className="text-[10px] px-2 py-0.5 bg-amber-200 hover:bg-amber-300 rounded font-medium flex-shrink-0"
+                      >Restaurer</button>
+                    </div>
+                  )}
+                  {!isFromLibrary && sp.formulaName && (
+                    <div className="flex items-center gap-2 text-[11px] bg-emerald-100 border border-emerald-300 rounded-lg px-2.5 py-1.5 text-emerald-700">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                      <span>Nouveau calcul — Sera créé localement pour ce setpoint</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <div className="text-xs font-medium text-emerald-700">META DATA</div>
                     <div className="flex items-center gap-1">
