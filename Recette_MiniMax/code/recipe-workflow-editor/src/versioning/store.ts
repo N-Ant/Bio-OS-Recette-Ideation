@@ -167,6 +167,8 @@ export const useVersioningStore = create<VersioningState & VersioningActions>()(
           recipeId: targetBranch.recipeId,
           branchId: targetBranchId,
           parentCommitId: targetBranch.headCommitId,
+          mergeSourceCommitId: sourceBranch.headCommitId,
+          mergeSourceBranchName: sourceBranch.name,
           snapshot,
           message: `Fusion de la variante "${sourceBranch.name}"`,
           author,

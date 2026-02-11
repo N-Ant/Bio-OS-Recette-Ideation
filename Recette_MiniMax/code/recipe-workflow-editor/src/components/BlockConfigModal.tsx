@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, HelpCircle, Eye, EyeOff } from 'lucide-react';
-import { Block, PhaseType, VARIABLES, DCU_SEQUENCES, FUNCTIONS, ParameterConfig, InstrumentConfig, WaitConfig, ProfileConfig, OperatorPromptConfig, ConditionConfig, CascadeConfig, CascadeActuator, CascadePoint, Connection } from '../types';
+import { Block, PhaseType, VARIABLES, DCU_SEQUENCES, FUNCTIONS, ParameterConfig, InstrumentConfig, WaitConfig, ProfileConfig, OperatorPromptConfig, ConditionConfig, CascadeConfig, CascadeActuator, CascadePoint, Connection, SetpointEntry } from '../types';
+import FormulaEditor from './FormulaEditor';
+import { useStore, getNamedCalculations, getCalculatedVariables } from '../store';
 
 interface Props {
   block: Block;
@@ -16,6 +18,13 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
   const [config, setConfig] = useState<Block['config']>(block.config);
   const [selectedActuatorId, setSelectedActuatorId] = useState<string | null>(null);
   const [expandedPidId, setExpandedPidId] = useState<string | null>(null);
+
+  // Get recipe units for FormulaEditor
+  const recipeUnits = (() => {
+    const state = useStore.getState();
+    const recipe = state.recipes.find(r => r.id === state.selectedRecipeId);
+    return recipe?.units;
+  })();
 
   useEffect(() => {
     if (!config) {
@@ -39,7 +48,7 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
           setConfig({ expression: 'pH', operator: '>', value: 7.0, useExpression: false } as ConditionConfig);
           break;
         case 'cascade':
-          setConfig({ 
+          setConfig({
             masterVariable: 'DO%', 
             setpoint: 30,
             deadband: 0.5,
@@ -59,45 +68,189 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
     onClose();
   };
 
+  const [expandedFormulaIdx, setExpandedFormulaIdx] = useState<number | null>(null);
+
   const renderParameterConfig = () => {
     const cfg = config as ParameterConfig || { setpoints: [] };
+    const storeState = useStore.getState();
+    const namedCalcs = getNamedCalculations(storeState);
+    const calcVars = getCalculatedVariables(storeState);
+
+    const updateSetpoint = (index: number, updates: Partial<SetpointEntry>) => {
+      const s = [...cfg.setpoints];
+      s[index] = { ...s[index], ...updates };
+      setConfig({ ...cfg, setpoints: s });
+    };
+
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Setpoints</span>
           <button onClick={() => setConfig({ ...cfg, setpoints: [...(cfg.setpoints || []), { variable: 'pH', value: '7.0', unit: '', alarmHigh: undefined, alarmLow: undefined }] })} className="text-xs text-blue-600 flex items-center gap-1"><Plus size={14} /> Ajouter</button>
         </div>
-        <div className="text-xs text-gray-500 mb-2">Paramètre | Valeur | Unité | Alarme Basse | Alarme Haute</div>
-        {cfg.setpoints?.map((sp, i) => (
-          <div key={i} className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg">
-            <select value={sp.variable} onChange={(e) => { const s = [...cfg.setpoints]; s[i].variable = e.target.value; setConfig({ ...cfg, setpoints: s }); }} className="text-sm border rounded px-2 py-1 w-28">
-              {VARIABLES.map(v => <option key={v}>{v}</option>)}
-            </select>
-            <input 
-              type="text" 
-              value={sp.value} 
-              onChange={(e) => { const s = [...cfg.setpoints]; s[i].value = e.target.value; setConfig({ ...cfg, setpoints: s }); }} 
-              placeholder="Valeur ou formule (ex: pH*2)"
-              className="flex-1 text-sm border rounded px-2 py-1 font-mono" 
-            />
-            <input placeholder="Unité" value={sp.unit} onChange={(e) => { const s = [...cfg.setpoints]; s[i].unit = e.target.value; setConfig({ ...cfg, setpoints: s }); }} className="w-14 text-sm border rounded px-2 py-1" />
-            <input 
-              type="number" 
-              value={sp.alarmLow ?? ''} 
-              onChange={(e) => { const s = [...cfg.setpoints]; s[i].alarmLow = e.target.value === '' ? undefined : parseFloat(e.target.value); setConfig({ ...cfg, setpoints: s }); }} 
-              placeholder="Low"
-              className="w-16 text-sm border rounded px-2 py-1 border-orange-300" 
-            />
-            <input 
-              type="number" 
-              value={sp.alarmHigh ?? ''} 
-              onChange={(e) => { const s = [...cfg.setpoints]; s[i].alarmHigh = e.target.value === '' ? undefined : parseFloat(e.target.value); setConfig({ ...cfg, setpoints: s }); }} 
-              placeholder="High"
-              className="w-16 text-sm border rounded px-2 py-1 border-red-300" 
-            />
-            <button onClick={() => { const s = cfg.setpoints.filter((_, j) => j !== i); setConfig({ ...cfg, setpoints: s }); }} className="text-red-500"><Trash2 size={14} /></button>
-          </div>
-        ))}
+        {cfg.setpoints?.map((sp, i) => {
+          const mode = sp.valueMode || 'value';
+          return (
+            <div key={i} className="bg-gray-50 p-2 rounded-lg space-y-2">
+              <div className="flex gap-2 items-center">
+                <select value={sp.variable} onChange={(e) => updateSetpoint(i, { variable: e.target.value })} className="text-sm border rounded px-2 py-1 w-36">
+                  <optgroup label="Variables process">
+                    {VARIABLES.map(v => <option key={v}>{v}</option>)}
+                  </optgroup>
+                  {calcVars.length > 0 && (
+                    <optgroup label="Variables calculées">
+                      {calcVars.map(v => <option key={v} value={v}>{v}</option>)}
+                    </optgroup>
+                  )}
+                </select>
+                {/* Value mode selector */}
+                <select
+                  value={mode}
+                  onChange={(e) => {
+                    const newMode = e.target.value as 'value' | 'calculation' | 'reset';
+                    updateSetpoint(i, { valueMode: newMode });
+                    if (newMode === 'calculation') setExpandedFormulaIdx(i);
+                    else setExpandedFormulaIdx(null);
+                  }}
+                  className="text-xs border rounded px-1.5 py-1 w-28 bg-white"
+                >
+                  <option value="value">Value</option>
+                  <option value="calculation">Calculation...</option>
+                  <option value="reset">Reset</option>
+                </select>
+                {mode === 'value' && (
+                  <input
+                    type="text"
+                    value={sp.value}
+                    onChange={(e) => updateSetpoint(i, { value: e.target.value })}
+                    placeholder="Valeur ou formule (ex: pH*2)"
+                    className="flex-1 text-sm border rounded px-2 py-1 font-mono"
+                  />
+                )}
+                {mode === 'reset' && (
+                  <div className="flex-1 text-sm text-gray-400 italic px-2 py-1">Reset getValue()</div>
+                )}
+                {mode === 'calculation' && (
+                  <button
+                    onClick={() => setExpandedFormulaIdx(expandedFormulaIdx === i ? null : i)}
+                    className="flex-1 text-left text-xs font-medium bg-emerald-50 border border-emerald-200 rounded px-2 py-1.5 hover:bg-emerald-100 truncate"
+                  >
+                    {sp.formulaName ? (
+                      <span className="text-emerald-800">{sp.formulaName}</span>
+                    ) : (
+                      <span className="text-emerald-500 italic">Edit Calculation...</span>
+                    )}
+                  </button>
+                )}
+                <input placeholder="Unité" value={sp.unit} onChange={(e) => updateSetpoint(i, { unit: e.target.value })} className="w-14 text-sm border rounded px-2 py-1" />
+                <input
+                  type="number"
+                  value={sp.alarmLow ?? ''}
+                  onChange={(e) => updateSetpoint(i, { alarmLow: e.target.value === '' ? undefined : parseFloat(e.target.value) })}
+                  placeholder="Low"
+                  className="w-16 text-sm border rounded px-2 py-1 border-orange-300"
+                />
+                <input
+                  type="number"
+                  value={sp.alarmHigh ?? ''}
+                  onChange={(e) => updateSetpoint(i, { alarmHigh: e.target.value === '' ? undefined : parseFloat(e.target.value) })}
+                  placeholder="High"
+                  className="w-16 text-sm border rounded px-2 py-1 border-red-300"
+                />
+                <button onClick={() => { const s = cfg.setpoints.filter((_, j) => j !== i); setConfig({ ...cfg, setpoints: s }); setExpandedFormulaIdx(null); }} className="text-red-500"><Trash2 size={14} /></button>
+              </div>
+              {/* Inline FormulaEditor when in calculation mode */}
+              {mode === 'calculation' && expandedFormulaIdx === i && (
+                <div className="ml-2 space-y-2 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                  {/* Select existing or create new */}
+                  {namedCalcs.length > 0 && (
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Calcul existant</label>
+                      <select
+                        value={sp.formulaName && namedCalcs.some(c => c.name === sp.formulaName) ? sp.formulaName : ''}
+                        onChange={(e) => {
+                          const name = e.target.value;
+                          if (!name) {
+                            updateSetpoint(i, { formulaName: '', formula: '', formulaDescription: '', resultLimitation: false, resultMin: 0, resultMax: 100 } as any);
+                            return;
+                          }
+                          const calc = namedCalcs.find(c => c.name === name);
+                          if (calc) {
+                            updateSetpoint(i, {
+                              formulaName: calc.name,
+                              formula: calc.formula,
+                              formulaDescription: calc.description || '',
+                              resultLimitation: calc.resultLimitation || false,
+                              resultMin: calc.resultMin ?? 0,
+                              resultMax: calc.resultMax ?? 100,
+                            } as any);
+                          }
+                        }}
+                        className="w-full mt-1 text-xs border rounded px-2 py-1.5 bg-white"
+                      >
+                        <option value="">-- Nouveau calcul --</option>
+                        {namedCalcs.map(c => (
+                          <option key={c.name} value={c.name}>{c.name}{c.description ? ` (${c.description})` : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div className="text-xs font-medium text-emerald-700 mb-1">META DATA</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs font-medium text-gray-700">Nom <span className="text-red-500">*</span></label>
+                      <input
+                        value={sp.formulaName || ''}
+                        onChange={(e) => updateSetpoint(i, { formulaName: e.target.value } as any)}
+                        placeholder="ex: O2_Totalizer"
+                        className={`w-full text-xs border rounded px-2 py-1 font-mono ${!sp.formulaName ? 'border-red-300 bg-red-50' : ''}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-700">Description</label>
+                      <input
+                        value={(sp as any).formulaDescription || ''}
+                        onChange={(e) => updateSetpoint(i, { formulaDescription: e.target.value } as any)}
+                        placeholder="Description du calcul"
+                        className="w-full text-xs border rounded px-2 py-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={(sp as any).resultLimitation || false}
+                        onChange={(e) => updateSetpoint(i, { resultLimitation: e.target.checked } as any)}
+                        className="rounded"
+                      />
+                      Result Limitation
+                    </label>
+                    {(sp as any).resultLimitation && (
+                      <>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-gray-500">Min:</span>
+                          <input type="number" value={(sp as any).resultMin ?? 0} onChange={(e) => updateSetpoint(i, { resultMin: parseFloat(e.target.value) || 0 } as any)} className="w-16 text-xs border rounded px-1 py-0.5" />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-gray-500">Max:</span>
+                          <input type="number" value={(sp as any).resultMax ?? 100} onChange={(e) => updateSetpoint(i, { resultMax: parseFloat(e.target.value) || 0 } as any)} className="w-16 text-xs border rounded px-1 py-0.5" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <FormulaEditor
+                    formula={sp.formula || ''}
+                    onFormulaChange={(formula) => updateSetpoint(i, { formula })}
+                    mode="calculation"
+                    availableCalculations={namedCalcs}
+                    units={recipeUnits}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -745,10 +898,13 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
     }
     
     // Standard condition UI
+    const storeState = useStore.getState();
+    const condNamedCalcs = getNamedCalculations(storeState);
+
     return (
       <div className="space-y-3">
         <p className="text-sm text-gray-600 bg-yellow-50 p-2 rounded">VRAI = bas (vert), FAUX = droite (rouge)</p>
-        
+
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -756,25 +912,35 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
             onChange={(e) => setConfig({ ...cfg, useExpression: e.target.checked })}
             className="rounded"
           />
-          <label className="text-sm">Utiliser une expression</label>
+          <label className="text-sm">Utiliser une expression avancée (FormulaEditor)</label>
         </div>
 
         <div>
           <label className="text-sm font-medium">{cfg.useExpression ? 'Expression' : 'Variable'}</label>
           {cfg.useExpression ? (
-            <input 
-              value={cfg.expression} 
-              onChange={(e) => setConfig({ ...cfg, expression: e.target.value })} 
-              placeholder="ex: (pH * DO%) / 10"
-              className="w-full mt-1 border rounded px-3 py-2 font-mono text-sm" 
-            />
+            <div className="mt-1">
+              <FormulaEditor
+                formula={cfg.expression}
+                onFormulaChange={(expr) => setConfig({ ...cfg, expression: expr })}
+                mode="condition"
+                availableCalculations={condNamedCalcs}
+                units={recipeUnits}
+              />
+            </div>
           ) : (
             <select value={cfg.expression} onChange={(e) => setConfig({ ...cfg, expression: e.target.value })} className="w-full mt-1 border rounded px-3 py-2">
-              {VARIABLES.map(v => <option key={v}>{v}</option>)}
+              <optgroup label="Variables process">
+                {VARIABLES.map(v => <option key={v}>{v}</option>)}
+              </optgroup>
+              {(() => { const cv = getCalculatedVariables(useStore.getState()); return cv.length > 0 ? (
+                <optgroup label="Variables calculées">
+                  {cv.map(v => <option key={v} value={v}>{v}</option>)}
+                </optgroup>
+              ) : null; })()}
             </select>
           )}
         </div>
-        
+
         <div>
           <label className="text-sm font-medium">Operateur</label>
           <div className="flex gap-1 mt-1 flex-wrap">
@@ -783,12 +949,12 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
             ))}
           </div>
         </div>
-        
+
         <div>
           <label className="text-sm font-medium">Valeur</label>
           <input type="number" value={cfg.value} onChange={(e) => setConfig({ ...cfg, value: parseFloat(e.target.value) || 0 })} className="w-full mt-1 border rounded px-3 py-2" />
         </div>
-        
+
         <div className="p-3 bg-gray-800 rounded-lg text-center font-mono text-sm text-yellow-300">
           IF {cfg.expression} {cfg.operator} {cfg.value}
         </div>

@@ -6,6 +6,8 @@ export interface RecipeCommit {
   recipeId: string;
   branchId: string;
   parentCommitId: string | null;
+  mergeSourceCommitId?: string | null; // HEAD of source branch at merge time
+  mergeSourceBranchName?: string | null; // name of source branch (kept even if branch deleted)
   snapshot: Recipe; // Complete clone of the recipe at this point
   message: string;
   author: string;

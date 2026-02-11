@@ -526,9 +526,13 @@ export function generateSeedData(): SeedData {
   const activeBranchIds: Record<string, string> = {};
 
   // Helper to create commit
-  const mkCommit = (recipeId: string, branchId: string, parentId: string | null, snapshot: Recipe, msg: string, author: string, ts: number, tags: string[] = []): string => {
+  const mkCommit = (recipeId: string, branchId: string, parentId: string | null, snapshot: Recipe, msg: string, author: string, ts: number, tags: string[] = [], mergeSource?: { commitId: string; branchName: string }): string => {
     const cid = id('c');
-    commits.push({ id: cid, recipeId, branchId, parentCommitId: parentId, snapshot: JSON.parse(JSON.stringify(snapshot)), message: msg, author, timestamp: ts, tags });
+    commits.push({
+      id: cid, recipeId, branchId, parentCommitId: parentId, snapshot: JSON.parse(JSON.stringify(snapshot)),
+      message: msg, author, timestamp: ts, tags,
+      ...(mergeSource ? { mergeSourceCommitId: mergeSource.commitId, mergeSourceBranchName: mergeSource.branchName } : {}),
+    });
     return cid;
   };
 
@@ -645,6 +649,11 @@ export function generateSeedData(): SeedData {
   branches.find(b => b.id === mabLPBrId)!.headCommitId = mLPC1;
   const mLPC2 = mkCommit('mab-perf', mabLPBrId, mLPC1, mabLowPH2, 'Adaptation prolongee a 8h post-inoculation', 'Marie L.', hoursAgo(100));
   branches.find(b => b.id === mabLPBrId)!.headCommitId = mLPC2;
+
+  // Link mC5 merge commit to Low pH source
+  const mC5Commit = commits.find(c => c.id === mC5)!;
+  mC5Commit.mergeSourceCommitId = mLPC2;
+  mC5Commit.mergeSourceBranchName = 'Low pH (6.8)';
 
   // Branch 3: "O2 Enrichi" from v4 - 2 commits
   const mabO2BrId = mkBranch('mab-perf', 'O2 Enrichi', mC4, mabMainId, mC4, hoursAgo(115), 3);

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Recipe, Block, Connection, Operation, PhaseType, CustomVariable } from './types';
+import { Recipe, Block, Connection, Operation, PhaseType, CustomVariable, ParameterConfig } from './types';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -8,6 +8,37 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 const demoComplexRecipe: Recipe = {
   id: 'demo',
   name: 'Demo-Complex',
+  units: [
+    { name: 'L-1', variables: [
+      'pH.Value', 'pH.Setpoint', 'pH.Output',
+      'TEMP.Value', 'TEMP.Setpoint', 'TEMP.Output',
+      'pO2.Value', 'pO2.Setpoint', 'pO2.Output',
+      'STIRR_1.Value', 'STIRR_1.Setpoint', 'STIRR_1.Output',
+      'AIRSP.Value', 'AIRSP.Setpoint', 'AIRSP.Output',
+      'O2SP.Value', 'O2SP.Setpoint', 'O2SP.Output',
+      'CO2.Value', 'CO2.Setpoint',
+      'GASFL_1.Value', 'GASFL_1.Setpoint', 'GASFL_1.Output',
+      'LEVEL.Value', 'LEVEL.Setpoint',
+      'PRESSURE.Value', 'PRESSURE.Setpoint',
+      'ProcessTime', 'BatchTime', 'OperationTime'
+    ]},
+    { name: 'L-2', variables: [
+      'TEMP.Value', 'TEMP.Setpoint', 'TEMP.Output',
+      'pO2.Value', 'pO2.Setpoint', 'pO2.Output',
+      'STIRR_1.Value', 'STIRR_1.Setpoint', 'STIRR_1.Output',
+      'AIRSP.Value', 'AIRSP.Setpoint',
+      'CO2.Value', 'CO2.Setpoint',
+      'LEVEL.Value', 'LEVEL.Setpoint',
+      'PRESSURE.Value', 'PRESSURE.Setpoint',
+      'ProcessTime', 'BatchTime', 'OperationTime'
+    ]},
+    { name: 'Feed-1', variables: [
+      'FEED.Value', 'FEED.Setpoint', 'FEED.Output',
+      'LEVEL.Value', 'LEVEL.Setpoint',
+      'PRESSURE.Value', 'PRESSURE.Setpoint',
+      'ProcessTime'
+    ]},
+  ],
   operations: [
     { 
       id: 'op1', number: 1, name: 'Initialisation',
@@ -53,7 +84,8 @@ const demoComplexRecipe: Recipe = {
     }
   ],
   customVariables: [
-    { id: 'cv1', name: 'PhParTemp', formula: 'pH / Temperature' }
+    { id: 'cv1', name: 'PhParTemp', formula: 'pH.Value / TEMP.Value', targetVariable: 'PhParTemp.Value', description: 'Ratio pH / Temperature' },
+    { id: 'cv2', name: 'O2_Totalizer', formula: 'getValue(O2_Totalizer.Value;0) + GASFL_1.Value * (calcCycle()/60)', targetVariable: 'O2_Totalizer.Value', description: 'Totalisation debit O2', resultLimitation: true, resultMin: 0, resultMax: 9999 }
   ],
   orientation: 'vertical'
 };
@@ -97,7 +129,7 @@ interface StoreState {
   addConnection: (from: string, to: string, branch?: string, parallelGroup?: string) => void;
   updateConnection: (id: string, updates: Partial<Connection>) => void;
   deleteConnection: (connectionId: string) => void;
-  addCustomVariable: (name: string, formula: string) => void;
+  addCustomVariable: (name: string, formula: string, extra?: Partial<CustomVariable>) => void;
   updateCustomVariable: (id: string, updates: Partial<CustomVariable>) => void;
   deleteCustomVariable: (id: string) => void;
   setOrientation: (orientation: 'vertical' | 'horizontal') => void;
@@ -110,6 +142,54 @@ interface StoreState {
 const getCurrentOperation = (state: StoreState): Operation | undefined => {
   const recipe = state.recipes.find(r => r.id === state.selectedRecipeId);
   return recipe?.operations.find(o => o.id === state.selectedOperationId);
+};
+
+// Helper: get named calculations from customVariables
+export interface NamedCalculation {
+  name: string;
+  formula: string;
+  description?: string;
+  resultLimitation?: boolean;
+  resultMin?: number;
+  resultMax?: number;
+}
+
+export const getNamedCalculations = (state: StoreState): NamedCalculation[] => {
+  const recipe = state.recipes.find(r => r.id === state.selectedRecipeId);
+  if (!recipe) return [];
+  // From library calculations
+  const fromLib: NamedCalculation[] = (recipe.customVariables || []).map(v => ({
+    name: v.name, formula: v.formula, description: v.description,
+    resultLimitation: v.resultLimitation, resultMin: v.resultMin, resultMax: v.resultMax
+  }));
+  // From named inline formulas in parameter phase setpoints
+  const fromSetpoints: NamedCalculation[] = [];
+  for (const op of recipe.operations) {
+    for (const block of op.blocks) {
+      if (block.type === 'parameter' && block.config) {
+        const cfg = block.config as ParameterConfig;
+        for (const sp of cfg.setpoints || []) {
+          if (sp.formulaName && sp.formula) {
+            fromSetpoints.push({
+              name: sp.formulaName, formula: sp.formula,
+              description: sp.formulaDescription,
+              resultLimitation: sp.resultLimitation, resultMin: sp.resultMin, resultMax: sp.resultMax
+            });
+          }
+        }
+      }
+    }
+  }
+  return [...fromLib, ...fromSetpoints];
+};
+
+// Helper: get calculated variable names (targetVariable) for dropdown injection
+export const getCalculatedVariables = (state: StoreState): string[] => {
+  const recipe = state.recipes.find(r => r.id === state.selectedRecipeId);
+  if (!recipe) return [];
+  return (recipe.customVariables || [])
+    .filter(v => v.targetVariable)
+    .map(v => v.targetVariable!);
 };
 
 // Helper to update current operation
@@ -220,7 +300,7 @@ export const useStore = create<StoreState>()(
       addBlock: (type, x, y) => set((state) => {
         const labels: Record<PhaseType, string> = {
           'start': 'Start', 'parameter': 'Parameter', 'operator-prompt': 'Prompt',
-          'instrument': 'Instrument', 'wait': 'Wait', 'profile': 'Profile', 
+          'instrument': 'Instrument', 'wait': 'Wait', 'profile': 'Profile',
           'condition': 'Condition', 'cascade': 'Cascade', 'end': 'End'
         };
         const newBlock: Block = { id: generateId(), type, label: labels[type], x, y };
@@ -290,9 +370,9 @@ export const useStore = create<StoreState>()(
         })),
       })),
       
-      addCustomVariable: (name, formula) => set((state) => ({
-        recipes: state.recipes.map((r) => r.id === state.selectedRecipeId 
-          ? { ...r, customVariables: [...(r.customVariables || []), { id: generateId(), name, formula }] } 
+      addCustomVariable: (name, formula, extra) => set((state) => ({
+        recipes: state.recipes.map((r) => r.id === state.selectedRecipeId
+          ? { ...r, customVariables: [...(r.customVariables || []), { id: generateId(), name, formula, ...extra }] }
           : r),
       })),
       
@@ -352,12 +432,54 @@ export const useStore = create<StoreState>()(
       }),
     }),
     {
-      name: 'recipe-workflow-storage-v5',
+      name: 'recipe-workflow-storage-v6',
       partialize: (state) => ({
         recipes: state.recipes,
         selectedRecipeId: state.selectedRecipeId,
         selectedOperationId: state.selectedOperationId,
       }),
+      merge: (persisted: any, current: any) => {
+        if (persisted && persisted.recipes) {
+          // Migrate: add default units to recipes that don't have them
+          persisted.recipes = persisted.recipes.map((r: any) => {
+            if (!r.units || (r.units.length === 1 && r.units[0].name === 'L-1')) {
+              r.units = [
+                { name: 'L-1', variables: [
+                  'pH.Value', 'pH.Setpoint', 'pH.Output',
+                  'TEMP.Value', 'TEMP.Setpoint', 'TEMP.Output',
+                  'pO2.Value', 'pO2.Setpoint', 'pO2.Output',
+                  'STIRR_1.Value', 'STIRR_1.Setpoint', 'STIRR_1.Output',
+                  'AIRSP.Value', 'AIRSP.Setpoint', 'AIRSP.Output',
+                  'O2SP.Value', 'O2SP.Setpoint', 'O2SP.Output',
+                  'CO2.Value', 'CO2.Setpoint',
+                  'GASFL_1.Value', 'GASFL_1.Setpoint', 'GASFL_1.Output',
+                  'LEVEL.Value', 'LEVEL.Setpoint',
+                  'PRESSURE.Value', 'PRESSURE.Setpoint',
+                  'ProcessTime', 'BatchTime', 'OperationTime'
+                ]},
+                { name: 'L-2', variables: [
+                  'TEMP.Value', 'TEMP.Setpoint', 'TEMP.Output',
+                  'pO2.Value', 'pO2.Setpoint', 'pO2.Output',
+                  'STIRR_1.Value', 'STIRR_1.Setpoint', 'STIRR_1.Output',
+                  'AIRSP.Value', 'AIRSP.Setpoint',
+                  'CO2.Value', 'CO2.Setpoint',
+                  'LEVEL.Value', 'LEVEL.Setpoint',
+                  'PRESSURE.Value', 'PRESSURE.Setpoint',
+                  'ProcessTime', 'BatchTime', 'OperationTime'
+                ]},
+                { name: 'Feed-1', variables: [
+                  'FEED.Value', 'FEED.Setpoint', 'FEED.Output',
+                  'LEVEL.Value', 'LEVEL.Setpoint',
+                  'PRESSURE.Value', 'PRESSURE.Setpoint',
+                  'ProcessTime'
+                ]},
+              ];
+            }
+            return r;
+          });
+        }
+        return { ...current, ...persisted };
+      },
     }
   )
 );

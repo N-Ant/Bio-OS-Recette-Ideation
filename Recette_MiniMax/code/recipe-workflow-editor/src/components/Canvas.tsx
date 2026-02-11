@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Play, Settings, MessageCircle, Cpu, Clock, LineChart, Square, Trash2, RotateCcw, Undo, Redo, GitBranch, X, ArrowDown, ArrowRight, Layers, Save, History, Eye } from 'lucide-react';
-import { useStore } from '../store';
+import { useStore, getNamedCalculations } from '../store';
 import { PhaseType, PHASE_CONFIG, Block, Connection, ConditionConfig, ProfileConfig, OperatorPromptConfig, TransitionCondition, VARIABLES, FUNCTIONS } from '../types';
 import BlockConfigModal from './BlockConfigModal';
+import FormulaEditor from './FormulaEditor';
 import { useVersioningStore } from '../versioning/store';
 import BranchSelector from './versioning/BranchSelector';
 import VersionBadge from './versioning/VersionBadge';
@@ -190,7 +191,7 @@ function BlockNode({ block, isSelected, onSelect, onDoubleClick, onDrag, onStart
 
   // Profile block with mini curve preview
   const profileConfig = block.type === 'profile' && block.config ? block.config as ProfileConfig : null;
-  
+
   // Operator prompt with multiple options
   const promptConfig = block.type === 'operator-prompt' && block.config ? block.config as OperatorPromptConfig : null;
   const promptOptions = promptConfig?.options || [];
@@ -676,18 +677,12 @@ function TransitionEditor({ connection, customVariables, onSave, onClose }: { co
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="bg-gray-50 p-3 rounded-lg text-xs text-gray-600">
-              <p className="font-medium mb-1">Syntaxe:</p>
-              <p>Variables: {VARIABLES.slice(0, 6).join(', ')}...</p>
-              <p>Operateurs: +, -, *, /, %, ( ), {'>'}, {'<'}, ==</p>
-              <p>Fonctions: {FUNCTIONS.join(', ')}</p>
-            </div>
-            <input
-              value={formula}
-              onChange={(e) => setFormula(e.target.value)}
-              placeholder="ex: pH > 7 AND DO% < 50"
-              className="w-full border rounded-lg px-3 py-2 font-mono text-sm"
-              autoFocus
+            <FormulaEditor
+              formula={formula}
+              onFormulaChange={setFormula}
+              mode="condition"
+              availableCalculations={getNamedCalculations(useStore.getState())}
+              units={(() => { const s = useStore.getState(); const r = s.recipes.find(r => r.id === s.selectedRecipeId); return r?.units; })()}
             />
             {formula && (
               <div className="p-3 bg-gray-800 rounded-lg text-center font-mono text-green-400 text-sm">

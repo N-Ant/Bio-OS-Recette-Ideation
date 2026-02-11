@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { X, GitCommit, ArrowLeftRight, RotateCcw, Save, Tag, GitBranch, Download, GitMerge, Plus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -12,8 +12,12 @@ interface GraphRow {
   col: number;
   isHead: boolean;
   isFork: boolean;
+  isMerge: boolean;
   forkFromCol: number | null; // column of parent branch if this is the first commit on a fork
   forkFromRowIdx: number | null; // row index of the fork-point commit on the parent branch
+  mergeFromCol: number | null; // column of the merge source commit
+  mergeFromRowIdx: number | null; // row index of the merge source commit
+  mergeFromColor: string | null; // color of the source branch
   isFirstOnBranch: boolean;
   isLastOnBranch: boolean;
 }
@@ -44,6 +48,16 @@ export default function VersionHistoryPanel() {
 
   const [tagInputCommitId, setTagInputCommitId] = useState<string | null>(null);
   const [tagInputValue, setTagInputValue] = useState('');
+
+  // Refs for overlay SVG connection lines (fork + merge curves)
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [connLines, setConnLines] = useState<{ d: string; color: string; dash: string }[]>([]);
+
+  const setNodeRef = useCallback((commitId: string, el: HTMLDivElement | null) => {
+    if (el) nodeRefs.current.set(commitId, el);
+    else nodeRefs.current.delete(commitId);
+  }, []);
 
   const selectedRecipeId = useStore(s => s.selectedRecipeId);
   const replaceRecipe = useStore(s => s.replaceRecipe);
@@ -102,8 +116,12 @@ export default function VersionHistoryPanel() {
           col,
           isHead: commit.id === branch.headCommitId,
           isFork: false, // will set below
+          isMerge: !!commit.mergeSourceCommitId,
           forkFromCol,
           forkFromRowIdx: null, // will set after sort
+          mergeFromCol: null, // will set after sort
+          mergeFromRowIdx: null, // will set after sort
+          mergeFromColor: null, // will set after sort
           isFirstOnBranch,
           isLastOnBranch,
         });
@@ -136,6 +154,15 @@ export default function VersionHistoryPanel() {
         if (forkCommitId) {
           const forkRowIdx = allRows.findIndex(r => r.commit.id === forkCommitId);
           if (forkRowIdx !== -1) row.forkFromRowIdx = forkRowIdx;
+        }
+      }
+      // Resolve merge source: find the row of the merge source commit
+      if (row.isMerge && row.commit.mergeSourceCommitId) {
+        const srcRow = allRows.findIndex(r => r.commit.id === row.commit.mergeSourceCommitId);
+        if (srcRow !== -1) {
+          row.mergeFromCol = allRows[srcRow].col;
+          row.mergeFromRowIdx = srcRow;
+          row.mergeFromColor = allRows[srcRow].branch.color;
         }
       }
     }
@@ -171,6 +198,65 @@ export default function VersionHistoryPanel() {
 
     return { rows: allRows, totalCols: sorted.length, branchSpans: spans };
   }, [branches, activeBranch?.id, getCommitsForBranch]);
+
+  // Compute overlay connection lines from actual DOM positions
+  const updateConnLines = useCallback(() => {
+    const container = timelineRef.current;
+    if (!container || rows.length === 0) { setConnLines([]); return; }
+    const containerRect = container.getBoundingClientRect();
+    const lines: { d: string; color: string; dash: string }[] = [];
+
+    for (const row of rows) {
+      const nodeEl = nodeRefs.current.get(row.commit.id);
+      if (!nodeEl) continue;
+      const nodeRect = nodeEl.getBoundingClientRect();
+      const nodeY = nodeRect.top + nodeRect.height / 2 - containerRect.top + container.scrollTop;
+      const nodeX = nodeRect.left + nodeRect.width / 2 - containerRect.left;
+
+      // Fork line
+      if (row.forkFromRowIdx !== null && row.forkFromCol !== null) {
+        const forkCommitId = rows[row.forkFromRowIdx]?.commit.id;
+        const parentEl = forkCommitId ? nodeRefs.current.get(forkCommitId) : null;
+        if (parentEl) {
+          const pRect = parentEl.getBoundingClientRect();
+          const pY = pRect.top + pRect.height / 2 - containerRect.top + container.scrollTop;
+          const pX = pRect.left + pRect.width / 2 - containerRect.left;
+          const dy = pY - nodeY;
+          lines.push({
+            d: `M ${nodeX} ${nodeY} C ${nodeX} ${nodeY + dy * 0.35}, ${pX} ${nodeY + dy * 0.65}, ${pX} ${pY}`,
+            color: row.branch.color,
+            dash: '4 3',
+          });
+        }
+      }
+
+      // Merge line
+      if (row.isMerge && row.mergeFromRowIdx !== null) {
+        const srcCommitId = rows[row.mergeFromRowIdx]?.commit.id;
+        const srcEl = srcCommitId ? nodeRefs.current.get(srcCommitId) : null;
+        if (srcEl) {
+          const sRect = srcEl.getBoundingClientRect();
+          const sY = sRect.top + sRect.height / 2 - containerRect.top + container.scrollTop;
+          const sX = sRect.left + sRect.width / 2 - containerRect.left;
+          const dy = sY - nodeY;
+          lines.push({
+            d: `M ${sX} ${sY} C ${sX} ${sY - dy * 0.35}, ${nodeX} ${sY - dy * 0.65}, ${nodeX} ${nodeY}`,
+            color: row.mergeFromColor || row.branch.color,
+            dash: '6 3',
+          });
+        }
+      }
+    }
+
+    setConnLines(lines);
+  }, [rows]);
+
+  // Re-compute lines after render and when selection changes (expands rows)
+  useEffect(() => {
+    // Small delay to let DOM settle after render
+    const timer = setTimeout(updateConnLines, 50);
+    return () => clearTimeout(timer);
+  }, [updateConnLines, selectedCommitId, rows]);
 
   if (!isHistoryPanelOpen || !selectedRecipeId) return null;
 
@@ -302,7 +388,15 @@ export default function VersionHistoryPanel() {
       </div>
 
       {/* Timeline */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto relative" ref={timelineRef} onScroll={updateConnLines}>
+        {/* Overlay SVG for fork and merge curves */}
+        {connLines.length > 0 && (
+          <svg className="absolute inset-0 pointer-events-none z-[6]" style={{ width: '100%', height: timelineRef.current?.scrollHeight || '100%' }}>
+            {connLines.map((line, i) => (
+              <path key={i} d={line.d} fill="none" stroke={line.color} strokeWidth={2} strokeDasharray={line.dash} opacity={0.55} />
+            ))}
+          </svg>
+        )}
         {rows.length === 0 ? (
           <div className="p-6 text-center text-gray-400 text-sm">
             <GitCommit size={32} className="mx-auto mb-2 opacity-30" />
@@ -332,7 +426,7 @@ export default function VersionHistoryPanel() {
                   {/* Graph column - stretches to full row height */}
                   <div
                     className="flex-shrink-0 relative self-stretch"
-                    style={{ width: GRAPH_W, overflow: 'visible' }}
+                    style={{ width: GRAPH_W }}
                   >
                     {/* Vertical lines for branches passing through this row */}
                     {visibleLines.map(vl => {
@@ -353,29 +447,7 @@ export default function VersionHistoryPanel() {
                       );
                     })}
 
-                    {/* Fork line: curve from fork-point commit (below) to this node */}
-                    {row.forkFromCol !== null && row.forkFromRowIdx !== null && (() => {
-                      const parentX = 12 + row.forkFromCol * LANE_W;
-                      // Distance in rows from this row down to the fork-point row
-                      const rowSpan = row.forkFromRowIdx - idx;
-                      // Height in pixels that the SVG needs to cover (from center of this row to center of fork row)
-                      const svgH = rowSpan * ROW_H;
-                      return (
-                        <svg
-                          className="absolute pointer-events-none"
-                          style={{ left: 0, top: '50%', width: GRAPH_W, height: svgH, overflow: 'visible' }}
-                        >
-                          <path
-                            d={`M ${nodeX} 0 C ${nodeX} ${svgH * 0.35}, ${parentX} ${svgH * 0.65}, ${parentX} ${svgH}`}
-                            fill="none"
-                            stroke={branch.color}
-                            strokeWidth={2}
-                            strokeDasharray="4 3"
-                            opacity={0.55}
-                          />
-                        </svg>
-                      );
-                    })()}
+                    {/* Fork and merge curves are rendered via the overlay SVG above */}
 
                     {/* Node circle */}
                     {(() => {
@@ -384,6 +456,7 @@ export default function VersionHistoryPanel() {
                       const nodeSize = LANE_W <= 18 ? 10 : 14;
                       return (
                         <div
+                          ref={(el) => setNodeRef(commit.id, el)}
                           className="absolute flex items-center justify-center rounded-full z-10"
                           style={{
                             left: nodeX - nodeSize / 2,
@@ -421,6 +494,22 @@ export default function VersionHistoryPanel() {
                           height: LANE_W <= 18 ? 16 : 22,
                           border: `1.5px dashed ${branch.color}`,
                           opacity: 0.35,
+                        }}
+                      />
+                    )}
+
+                    {/* Merge indicator ring */}
+                    {row.isMerge && (
+                      <div
+                        className="absolute rounded-full z-[9]"
+                        style={{
+                          left: nodeX - (LANE_W <= 18 ? 8 : 11),
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: LANE_W <= 18 ? 16 : 22,
+                          height: LANE_W <= 18 ? 16 : 22,
+                          border: `2px solid ${row.mergeFromColor || branch.color}`,
+                          opacity: 0.5,
                         }}
                       />
                     )}

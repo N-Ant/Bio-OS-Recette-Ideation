@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronRight, Variable, Minus } from 'lucide-react';
-import { PhaseType } from '../types';
-import { useStore } from '../store';
+import { Plus, Trash2, ChevronDown, ChevronRight, Variable, Minus, X, Pencil } from 'lucide-react';
+import { PhaseType, CustomVariable } from '../types';
+import { useStore, getNamedCalculations } from '../store';
+import FormulaEditor from './FormulaEditor';
 
 const phases: { type: PhaseType; label: string; bg: string; icon: string }[] = [
   { type: 'start', label: 'Start', bg: '#55B479', icon: 'play' },
@@ -14,13 +15,83 @@ const phases: { type: PhaseType; label: string; bg: string; icon: string }[] = [
   { type: 'end', label: 'End', bg: '#FB6A6A', icon: 'flag' },
 ];
 
+// Modal for editing a calculation/variable
+function CalcEditModal({ variable, onSave, onClose }: { variable?: CustomVariable; onSave: (data: Omit<CustomVariable, 'id'>) => void; onClose: () => void }) {
+  const [name, setName] = useState(variable?.name || '');
+  const [formula, setFormula] = useState(variable?.formula || '');
+  const [description, setDescription] = useState(variable?.description || '');
+  const [resultLimitation, setResultLimitation] = useState(variable?.resultLimitation || false);
+  const [resultMin, setResultMin] = useState(variable?.resultMin ?? 0);
+  const [resultMax, setResultMax] = useState(variable?.resultMax ?? 100);
+
+  const storeState = useStore.getState();
+  const namedCalcs = getNamedCalculations(storeState).filter(c => c.name !== variable?.name);
+  const recipeUnits = (() => { const r = storeState.recipes.find(r => r.id === storeState.selectedRecipeId); return r?.units; })();
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-3 border-b bg-emerald-50">
+          <div>
+            <h2 className="text-base font-semibold text-emerald-900">{variable ? 'Modifier le calcul' : 'Nouveau calcul'}</h2>
+            <p className="text-xs text-emerald-600">Définir une formule nommée (MFCS Calculation)</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-emerald-100 rounded-lg"><X size={18} /></button>
+        </div>
+
+        <div className="p-5 space-y-4 overflow-y-auto max-h-[65vh]">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700">Nom du calcul</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex: O2_Totalizer" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" autoFocus />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Description</label>
+              <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description du calcul" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" />
+            </div>
+          </div>
+
+          <FormulaEditor
+            formula={formula}
+            onFormulaChange={setFormula}
+            mode="calculation"
+            availableCalculations={namedCalcs}
+            units={recipeUnits}
+            showResultLimitation
+            resultLimitation={resultLimitation}
+            onResultLimitationChange={setResultLimitation}
+            resultMin={resultMin}
+            onResultMinChange={setResultMin}
+            resultMax={resultMax}
+            onResultMaxChange={setResultMax}
+          />
+        </div>
+
+        <div className="flex justify-end gap-2 px-5 py-3 border-t bg-gray-50">
+          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Annuler</button>
+          <button
+            onClick={() => {
+              if (!name.trim() || !formula.trim()) return;
+              onSave({ name: name.trim(), formula: formula.trim(), description: description.trim() || undefined, resultLimitation: resultLimitation || undefined, resultMin, resultMax });
+              onClose();
+            }}
+            disabled={!name.trim() || !formula.trim()}
+            className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Sauvegarder
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LibraryPanel() {
-  const { recipes, selectedRecipeId, addCustomVariable, deleteCustomVariable } = useStore();
+  const { recipes, selectedRecipeId, addCustomVariable, updateCustomVariable, deleteCustomVariable } = useStore();
   const [showVariables, setShowVariables] = useState(true);
-  const [newVarName, setNewVarName] = useState('');
-  const [newVarFormula, setNewVarFormula] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [editingVar, setEditingVar] = useState<CustomVariable | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   const recipe = recipes.find(r => r.id === selectedRecipeId);
   const customVariables = recipe?.customVariables || [];
@@ -28,15 +99,6 @@ export default function LibraryPanel() {
   const handleDragStart = (e: React.DragEvent, type: PhaseType) => {
     e.dataTransfer.setData('phaseType', type);
     e.dataTransfer.effectAllowed = 'copy';
-  };
-
-  const handleAddVariable = () => {
-    if (newVarName.trim() && newVarFormula.trim()) {
-      addCustomVariable(newVarName.trim(), newVarFormula.trim());
-      setNewVarName('');
-      setNewVarFormula('');
-      setIsAdding(false);
-    }
   };
 
   const renderIcon = (iconType: string) => {
@@ -136,77 +198,75 @@ export default function LibraryPanel() {
               ))}
             </div>
 
-            {/* Variables Section */}
+            {/* Calculations / Variables Section */}
             <div className="border-t border-gray-100">
-              <button 
+              <button
                 onClick={() => setShowVariables(!showVariables)}
                 className="w-full flex items-center justify-between p-3 hover:bg-gray-50"
               >
                 <div className="flex items-center gap-2">
-                  <Variable size={14} className="text-purple-600" />
-                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Variables</span>
+                  <Variable size={14} className="text-emerald-600" />
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Calculations</span>
                 </div>
                 {showVariables ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </button>
-              
+
               {showVariables && (
                 <div className="px-3 pb-3 space-y-2">
                   {customVariables.map((v) => (
-                    <div key={v.id} className="flex items-center justify-between bg-purple-50 rounded-lg px-2 py-1.5 group">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-purple-700 truncate">{v.name}</div>
-                        <div className="text-xs text-purple-500 font-mono truncate">{v.formula}</div>
+                    <div key={v.id} className="bg-emerald-50 rounded-lg px-2 py-1.5 group">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-emerald-700 truncate">{v.name}</div>
+                          <div className="text-xs text-emerald-600 font-mono truncate">{v.formula}</div>
+                        </div>
+                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => setEditingVar(v)}
+                            className="p-1 text-emerald-500 hover:text-emerald-700"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            onClick={() => deleteCustomVariable(v.id)}
+                            className="p-1 text-red-400 hover:text-red-600"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </div>
-                      <button 
-                        onClick={() => deleteCustomVariable(v.id)}
-                        className="p-1 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      {v.resultLimitation && (
+                        <div className="text-[10px] text-gray-400 mt-0.5">Limites: {v.resultMin} - {v.resultMax}</div>
+                      )}
                     </div>
                   ))}
-                  
-                  {isAdding ? (
-                    <div className="space-y-2 bg-gray-50 rounded-lg p-2">
-                      <input
-                        value={newVarName}
-                        onChange={(e) => setNewVarName(e.target.value)}
-                        placeholder="Nom (ex: PhParTemp)"
-                        className="w-full text-sm border rounded px-2 py-1"
-                        autoFocus
-                      />
-                      <input
-                        value={newVarFormula}
-                        onChange={(e) => setNewVarFormula(e.target.value)}
-                        placeholder="Formule (ex: pH / Temp)"
-                        className="w-full text-sm border rounded px-2 py-1 font-mono"
-                      />
-                      <div className="flex gap-1">
-                        <button 
-                          onClick={handleAddVariable}
-                          className="flex-1 text-xs bg-purple-500 text-white rounded py-1 hover:bg-purple-600"
-                        >
-                          Ajouter
-                        </button>
-                        <button 
-                          onClick={() => { setIsAdding(false); setNewVarName(''); setNewVarFormula(''); }}
-                          className="px-2 text-xs text-gray-500 hover:text-gray-700"
-                        >
-                          Annuler
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={() => setIsAdding(true)}
-                      className="w-full flex items-center justify-center gap-1 text-xs text-purple-600 hover:text-purple-700 py-1.5 border border-dashed border-purple-300 rounded-lg hover:border-purple-400"
-                    >
-                      <Plus size={12} /> Nouvelle variable
-                    </button>
-                  )}
+
+                  <button
+                    onClick={() => setIsCreating(true)}
+                    className="w-full flex items-center justify-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 py-1.5 border border-dashed border-emerald-300 rounded-lg hover:border-emerald-400"
+                  >
+                    <Plus size={12} /> Nouveau calcul
+                  </button>
                 </div>
               )}
             </div>
+
+            {/* Edit modal */}
+            {editingVar && (
+              <CalcEditModal
+                variable={editingVar}
+                onSave={(data) => updateCustomVariable(editingVar.id, data)}
+                onClose={() => setEditingVar(null)}
+              />
+            )}
+
+            {/* Create modal */}
+            {isCreating && (
+              <CalcEditModal
+                onSave={(data) => addCustomVariable(data.name, data.formula, { description: data.description, resultLimitation: data.resultLimitation, resultMin: data.resultMin, resultMax: data.resultMax })}
+                onClose={() => setIsCreating(false)}
+              />
+            )}
           </div>
           
           {/* Footer */}

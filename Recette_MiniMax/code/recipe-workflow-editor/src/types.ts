@@ -1,7 +1,22 @@
 export type PhaseType = 'start' | 'parameter' | 'operator-prompt' | 'instrument' | 'wait' | 'profile' | 'condition' | 'cascade' | 'end';
 
+export interface SetpointEntry {
+  variable: string;
+  value: string;
+  unit: string;
+  alarmHigh?: number;
+  alarmLow?: number;
+  valueMode?: 'value' | 'calculation' | 'reset';  // default 'value' for backward compat
+  formula?: string;  // used when valueMode === 'calculation'
+  formulaName?: string;  // name of the calculation (required in MFCS)
+  formulaDescription?: string;  // description of the calculation
+  resultLimitation?: boolean;  // enable min/max result clamping
+  resultMin?: number;
+  resultMax?: number;
+}
+
 export interface ParameterConfig {
-  setpoints: { variable: string; value: string; unit: string; alarmHigh?: number; alarmLow?: number }[];  // value accepts numbers or formulas
+  setpoints: SetpointEntry[];  // value accepts numbers or formulas
 }
 
 export interface InstrumentConfig {
@@ -105,6 +120,16 @@ export interface CustomVariable {
   id: string;
   name: string;
   formula: string;
+  targetVariable?: string;   // Variable cible (ex: O2_Totalizer.Value)
+  description?: string;
+  resultLimitation?: boolean;
+  resultMin?: number;
+  resultMax?: number;
+}
+
+export interface RecipeUnit {
+  name: string;          // e.g., 'L-1', 'Feed-1', 'Balance-1'
+  variables: string[];   // Variables available on this unit
 }
 
 export interface Recipe {
@@ -113,6 +138,7 @@ export interface Recipe {
   operations: Operation[];
   customVariables?: CustomVariable[];
   orientation?: 'vertical' | 'horizontal';
+  units?: RecipeUnit[];
 }
 
 export const PHASE_CONFIG: Record<PhaseType, { color: string; bgColor: string; icon: string; shape?: 'diamond' }> = {
@@ -140,3 +166,30 @@ export const DCU_SEQUENCES = [
   'Inoculation Prep'
 ];
 export const FUNCTIONS = ['min', 'max', 'abs', 'sqrt', 'avg'];
+
+// MFCS math functions for the FormulaEditor
+export const MATH_FUNCTIONS = [
+  'sin', 'cos', 'tan', 'power', 'exp', 'sqrt', 'ln', 'log10',
+  'floor', 'ceil', 'abs', 'mean', 'getValue', 'calcCycle'
+];
+
+// MFCS process variables (Controller.Property format)
+export const MFCS_VARIABLES = [
+  'pH.Value', 'pH.Setpoint', 'pH.Output',
+  'TEMP.Value', 'TEMP.Setpoint', 'TEMP.Output',
+  'pO2.Value', 'pO2.Setpoint', 'pO2.Output',
+  'STIRR_1.Value', 'STIRR_1.Setpoint', 'STIRR_1.Output',
+  'AIRSP.Value', 'AIRSP.Setpoint', 'AIRSP.Output',
+  'O2SP.Value', 'O2SP.Setpoint', 'O2SP.Output',
+  'CO2.Value', 'CO2.Setpoint',
+  'FEED.Value', 'FEED.Setpoint', 'FEED.Output',
+  'LEVEL.Value', 'LEVEL.Setpoint',
+  'PRESSURE.Value', 'PRESSURE.Setpoint',
+  'GASFL_1.Value', 'GASFL_1.Setpoint', 'GASFL_1.Output',
+  'ProcessTime', 'BatchTime', 'OperationTime'
+];
+
+// Default unit with all MFCS variables
+export const DEFAULT_UNITS: RecipeUnit[] = [
+  { name: 'L-1', variables: [...MFCS_VARIABLES] }
+];
