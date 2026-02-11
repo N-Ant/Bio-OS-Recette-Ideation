@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Search, Delete } from 'lucide-react';
-import { MATH_FUNCTIONS, MFCS_VARIABLES, DEFAULT_UNITS, RecipeUnit } from '../types';
+import { MATH_FUNCTIONS, MFCS_VARIABLES, DEFAULT_UNITS, RecipeUnit, getCompatibleUnits } from '../types';
 
 interface FormulaEditorProps {
   formula: string;
@@ -343,16 +343,26 @@ export default function FormulaEditor({
                     />
                   </div>
                   <div className="max-h-48 overflow-y-auto space-y-0.5">
-                    {filteredCalcs.map(c => (
-                      <button
-                        key={c.name}
-                        onClick={() => { insertAtCursor(c.name); setShowCalcPopover(false); setCalcSearch(''); }}
-                        className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-emerald-50"
-                      >
-                        <div className="font-medium text-emerald-700">{c.name}</div>
-                        <div className="text-gray-400 font-mono truncate">{c.formula}</div>
-                      </button>
-                    ))}
+                    {filteredCalcs.map((c, ci) => {
+                      const compat = getCompatibleUnits(c.formula, activeUnits);
+                      return (
+                        <button
+                          key={`${c.name}-${ci}`}
+                          onClick={() => { insertAtCursor(c.name); setShowCalcPopover(false); setCalcSearch(''); }}
+                          className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-emerald-50"
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-medium text-emerald-700">{c.name}</span>
+                            <span className="flex gap-0.5 flex-shrink-0">
+                              {compat.map(u => (
+                                <span key={u} className="text-[9px] px-1 py-0.5 bg-blue-100 text-blue-600 rounded font-medium">{u}</span>
+                              ))}
+                            </span>
+                          </div>
+                          <div className="text-gray-400 font-mono truncate">{c.formula}</div>
+                        </button>
+                      );
+                    })}
                     {filteredCalcs.length === 0 && (
                       <div className="text-xs text-gray-400 p-2 text-center">Aucun calcul</div>
                     )}

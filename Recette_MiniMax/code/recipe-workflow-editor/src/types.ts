@@ -193,3 +193,15 @@ export const MFCS_VARIABLES = [
 export const DEFAULT_UNITS: RecipeUnit[] = [
   { name: 'L-1', variables: [...MFCS_VARIABLES] }
 ];
+
+// Given a formula, find which units are compatible (have ALL referenced variables)
+export function getCompatibleUnits(formula: string, units: RecipeUnit[]): string[] {
+  if (!formula) return units.map(u => u.name);
+  // Collect all MFCS variables present in the formula
+  const allVars = new Set<string>();
+  for (const u of units) for (const v of u.variables) allVars.add(v);
+  const usedVars = Array.from(allVars).filter(v => formula.includes(v));
+  if (usedVars.length === 0) return units.map(u => u.name);
+  // A unit is compatible if it has ALL the used variables
+  return units.filter(u => usedVars.every(v => u.variables.includes(v))).map(u => u.name);
+}

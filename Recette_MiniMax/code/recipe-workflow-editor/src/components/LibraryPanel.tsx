@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronRight, Variable, Minus, X, Pencil } from 'lucide-react';
-import { PhaseType, CustomVariable } from '../types';
+import { PhaseType, CustomVariable, DEFAULT_UNITS, getCompatibleUnits } from '../types';
 import { useStore, getNamedCalculations } from '../store';
 import FormulaEditor from './FormulaEditor';
 
@@ -95,6 +95,7 @@ export default function LibraryPanel() {
 
   const recipe = recipes.find(r => r.id === selectedRecipeId);
   const customVariables = recipe?.customVariables || [];
+  const activeUnits = recipe?.units && recipe.units.length > 0 ? recipe.units : DEFAULT_UNITS;
 
   const handleDragStart = (e: React.DragEvent, type: PhaseType) => {
     e.dataTransfer.setData('phaseType', type);
@@ -213,33 +214,43 @@ export default function LibraryPanel() {
 
               {showVariables && (
                 <div className="px-3 pb-3 space-y-2">
-                  {customVariables.map((v) => (
-                    <div key={v.id} className="bg-emerald-50 rounded-lg px-2 py-1.5 group">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-emerald-700 truncate">{v.name}</div>
-                          <div className="text-xs text-emerald-600 font-mono truncate">{v.formula}</div>
+                  {customVariables.map((v) => {
+                    const compatible = getCompatibleUnits(v.formula, activeUnits);
+                    return (
+                      <div key={v.id} className="bg-emerald-50 rounded-lg px-2 py-1.5 group">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm font-medium text-emerald-700 truncate">{v.name}</span>
+                              <span className="flex gap-0.5 flex-shrink-0">
+                                {compatible.map(u => (
+                                  <span key={u} className="text-[8px] px-0.5 py-0 bg-blue-100 text-blue-600 rounded font-medium leading-tight">{u}</span>
+                                ))}
+                              </span>
+                            </div>
+                            <div className="text-xs text-emerald-600 font-mono truncate">{v.formula}</div>
+                          </div>
+                          <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => setEditingVar(v)}
+                              className="p-1 text-emerald-500 hover:text-emerald-700"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                            <button
+                              onClick={() => deleteCustomVariable(v.id)}
+                              className="p-1 text-red-400 hover:text-red-600"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => setEditingVar(v)}
-                            className="p-1 text-emerald-500 hover:text-emerald-700"
-                          >
-                            <Pencil size={12} />
-                          </button>
-                          <button
-                            onClick={() => deleteCustomVariable(v.id)}
-                            className="p-1 text-red-400 hover:text-red-600"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
+                        {v.resultLimitation && (
+                          <div className="text-[10px] text-gray-400 mt-0.5">Limites: {v.resultMin} - {v.resultMax}</div>
+                        )}
                       </div>
-                      {v.resultLimitation && (
-                        <div className="text-[10px] text-gray-400 mt-0.5">Limites: {v.resultMin} - {v.resultMax}</div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   <button
                     onClick={() => setIsCreating(true)}

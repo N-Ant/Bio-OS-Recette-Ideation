@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, HelpCircle, Eye, EyeOff } from 'lucide-react';
-import { Block, PhaseType, VARIABLES, DCU_SEQUENCES, FUNCTIONS, ParameterConfig, InstrumentConfig, WaitConfig, ProfileConfig, OperatorPromptConfig, ConditionConfig, CascadeConfig, CascadeActuator, CascadePoint, Connection, SetpointEntry } from '../types';
+import { Block, PhaseType, VARIABLES, DCU_SEQUENCES, FUNCTIONS, ParameterConfig, InstrumentConfig, WaitConfig, ProfileConfig, OperatorPromptConfig, ConditionConfig, CascadeConfig, CascadeActuator, CascadePoint, Connection, SetpointEntry, DEFAULT_UNITS, getCompatibleUnits, MFCS_VARIABLES } from '../types';
 import FormulaEditor from './FormulaEditor';
 import { useStore, getNamedCalculations, getCalculatedVariables } from '../store';
 
@@ -69,12 +69,24 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
   };
 
   const [expandedFormulaIdx, setExpandedFormulaIdx] = useState<number | null>(null);
+  const [showCalcListIdx, setShowCalcListIdx] = useState<number | null>(null);
+  const [showVarPopoverIdx, setShowVarPopoverIdx] = useState<number | null>(null);
+  const [varPopoverSearch, setVarPopoverSearch] = useState('');
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
+  const [calcListPos, setCalcListPos] = useState<{ top: number; left: number } | null>(null);
 
   const renderParameterConfig = () => {
     const cfg = config as ParameterConfig || { setpoints: [] };
     const storeState = useStore.getState();
     const namedCalcs = getNamedCalculations(storeState);
     const calcVars = getCalculatedVariables(storeState);
+    const activeUnits = recipeUnits && recipeUnits.length > 0 ? recipeUnits : DEFAULT_UNITS;
+
+    // All unique variables across all units
+    const allVarsSet = new Set<string>();
+    for (const u of activeUnits) for (const v of u.variables) allVarsSet.add(v);
+    const allMfcsVars = Array.from(allVarsSet);
+    const varToUnits = (v: string) => activeUnits.filter(u => u.variables.includes(v)).map(u => u.name);
 
     const updateSetpoint = (index: number, updates: Partial<SetpointEntry>) => {
       const s = [...cfg.setpoints];
@@ -93,24 +105,82 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
           return (
             <div key={i} className="bg-gray-50 p-2 rounded-lg space-y-2">
               <div className="flex gap-2 items-center">
-                <select value={sp.variable} onChange={(e) => updateSetpoint(i, { variable: e.target.value })} className="text-sm border rounded px-2 py-1 w-36">
-                  <optgroup label="Variables process">
-                    {VARIABLES.map(v => <option key={v}>{v}</option>)}
-                  </optgroup>
-                  {calcVars.length > 0 && (
-                    <optgroup label="Variables calculées">
-                      {calcVars.map(v => <option key={v} value={v}>{v}</option>)}
-                    </optgroup>
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      if (showVarPopoverIdx === i) { setShowVarPopoverIdx(null); setPopoverPos(null); }
+                      else {
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        setPopoverPos({ top: rect.bottom + 2, left: rect.left });
+                        setShowVarPopoverIdx(i); setVarPopoverSearch(''); setShowCalcListIdx(null); setCalcListPos(null);
+                      }
+                    }}
+                    className="text-sm border rounded px-2 py-1 w-36 text-left bg-white hover:bg-gray-50 truncate"
+                  >
+                    {sp.variable || 'Variable...'}
+                  </button>
+                  {showVarPopoverIdx === i && popoverPos && (
+                    <div
+                      className="w-72 bg-white border border-gray-200 rounded-lg shadow-xl p-2"
+                      style={{ position: 'fixed', zIndex: 9999, top: popoverPos.top, left: popoverPos.left, maxHeight: `${window.innerHeight - popoverPos.top - 8}px` }}
+                    >
+                      <div className="flex items-center gap-1 mb-2 border rounded px-2 py-1 bg-gray-50">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input
+                          value={varPopoverSearch}
+                          onChange={(e) => setVarPopoverSearch(e.target.value)}
+                          placeholder="Rechercher..."
+                          className="flex-1 text-xs bg-transparent outline-none"
+                          autoFocus
+                        />
+                      </div>
+                      <div className="max-h-56 overflow-y-auto space-y-0.5">
+                        {allMfcsVars
+                          .filter(v => v.toLowerCase().includes(varPopoverSearch.toLowerCase()))
+                          .map(v => {
+                            const presentIn = varToUnits(v);
+                            return (
+                              <button
+                                key={v}
+                                onClick={() => { updateSetpoint(i, { variable: v }); setShowVarPopoverIdx(null); setPopoverPos(null); }}
+                                className={`w-full flex items-center justify-between text-xs px-2 py-1 rounded hover:bg-blue-50 ${sp.variable === v ? 'bg-blue-50' : ''}`}
+                              >
+                                <span className="font-mono text-gray-700">{v}</span>
+                                <span className="flex gap-0.5 flex-shrink-0 ml-1">
+                                  {presentIn.map(u => (
+                                    <span key={u} className="text-[9px] px-1 py-0.5 bg-blue-100 text-blue-600 rounded font-medium">{u}</span>
+                                  ))}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        {calcVars.length > 0 && (
+                          <>
+                            <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide px-2 pt-2 pb-1 border-t mt-1">Variables calculées</div>
+                            {calcVars
+                              .filter(v => v.toLowerCase().includes(varPopoverSearch.toLowerCase()))
+                              .map(v => (
+                                <button
+                                  key={v}
+                                  onClick={() => { updateSetpoint(i, { variable: v }); setShowVarPopoverIdx(null); setPopoverPos(null); }}
+                                  className={`w-full flex items-center text-xs px-2 py-1 rounded hover:bg-emerald-50 ${sp.variable === v ? 'bg-emerald-50' : ''}`}
+                                >
+                                  <span className="font-mono text-emerald-700">{v}</span>
+                                </button>
+                              ))}
+                          </>
+                        )}
+                      </div>
+                    </div>
                   )}
-                </select>
+                </div>
                 {/* Value mode selector */}
                 <select
                   value={mode}
                   onChange={(e) => {
                     const newMode = e.target.value as 'value' | 'calculation' | 'reset';
                     updateSetpoint(i, { valueMode: newMode });
-                    if (newMode === 'calculation') setExpandedFormulaIdx(i);
-                    else setExpandedFormulaIdx(null);
+                    setExpandedFormulaIdx(null);
                   }}
                   className="text-xs border rounded px-1.5 py-1 w-28 bg-white"
                 >
@@ -131,16 +201,83 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
                   <div className="flex-1 text-sm text-gray-400 italic px-2 py-1">Reset getValue()</div>
                 )}
                 {mode === 'calculation' && (
-                  <button
-                    onClick={() => setExpandedFormulaIdx(expandedFormulaIdx === i ? null : i)}
-                    className="flex-1 text-left text-xs font-medium bg-emerald-50 border border-emerald-200 rounded px-2 py-1.5 hover:bg-emerald-100 truncate"
-                  >
-                    {sp.formulaName ? (
-                      <span className="text-emerald-800">{sp.formulaName}</span>
-                    ) : (
-                      <span className="text-emerald-500 italic">Edit Calculation...</span>
+                  <div className="flex-1 flex gap-1 items-center">
+                    <button
+                      onClick={() => { setExpandedFormulaIdx(expandedFormulaIdx === i ? null : i); setShowCalcListIdx(null); }}
+                      className="flex-1 text-left text-xs font-medium bg-emerald-50 border border-emerald-200 rounded px-2 py-1.5 hover:bg-emerald-100 truncate"
+                    >
+                      {sp.formulaName ? (
+                        <span className="text-emerald-800">{sp.formulaName}</span>
+                      ) : (
+                        <span className="text-emerald-500 italic">+ Nouveau calcul</span>
+                      )}
+                    </button>
+                    {sp.formulaName && (
+                      <button
+                        onClick={() => updateSetpoint(i, { formulaName: '', formula: '', formulaDescription: '', resultLimitation: false, resultMin: 0, resultMax: 100 } as any)}
+                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                        title="Vider et créer un nouveau"
+                      >
+                        <X size={14} />
+                      </button>
                     )}
-                  </button>
+                    {namedCalcs.length > 0 && (
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            if (showCalcListIdx === i) { setShowCalcListIdx(null); setCalcListPos(null); }
+                            else {
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setCalcListPos({ top: rect.bottom + 4, left: rect.right - 256 });
+                              setShowCalcListIdx(i); setExpandedFormulaIdx(null); setShowVarPopoverIdx(null); setPopoverPos(null);
+                            }
+                          }}
+                          className="p-1.5 bg-emerald-100 border border-emerald-300 rounded hover:bg-emerald-200 text-emerald-700"
+                          title="Choisir un calcul existant"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                        </button>
+                        {showCalcListIdx === i && calcListPos && (
+                          <div
+                            className="w-64 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden max-h-56 overflow-y-auto"
+                            style={{ position: 'fixed', zIndex: 9999, top: calcListPos.top, left: Math.max(8, calcListPos.left) }}
+                          >
+                            {namedCalcs.map(calc => {
+                              const compatible = getCompatibleUnits(calc.formula, activeUnits);
+                              return (
+                                <button
+                                  key={calc.name}
+                                  onClick={() => {
+                                    updateSetpoint(i, {
+                                      formulaName: calc.name,
+                                      formula: calc.formula,
+                                      formulaDescription: calc.description || '',
+                                      resultLimitation: calc.resultLimitation || false,
+                                      resultMin: calc.resultMin ?? 0,
+                                      resultMax: calc.resultMax ?? 100,
+                                    } as any);
+                                    setShowCalcListIdx(null);
+                                    setCalcListPos(null);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 border-b border-gray-100 last:border-0 ${sp.formulaName === calc.name ? 'bg-emerald-50' : ''}`}
+                                >
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="font-medium text-emerald-800">{calc.name}</span>
+                                    <span className="flex gap-0.5 flex-shrink-0">
+                                      {compatible.map(u => (
+                                        <span key={u} className="text-[9px] px-1 py-0.5 bg-blue-100 text-blue-600 rounded font-medium">{u}</span>
+                                      ))}
+                                    </span>
+                                  </div>
+                                  <div className="font-mono text-[10px] text-gray-400 truncate">{calc.formula}</div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
                 <input placeholder="Unité" value={sp.unit} onChange={(e) => updateSetpoint(i, { unit: e.target.value })} className="w-14 text-sm border rounded px-2 py-1" />
                 <input
@@ -160,42 +297,21 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
                 <button onClick={() => { const s = cfg.setpoints.filter((_, j) => j !== i); setConfig({ ...cfg, setpoints: s }); setExpandedFormulaIdx(null); }} className="text-red-500"><Trash2 size={14} /></button>
               </div>
               {/* Inline FormulaEditor when in calculation mode */}
-              {mode === 'calculation' && expandedFormulaIdx === i && (
+              {mode === 'calculation' && expandedFormulaIdx === i && (() => {
+                const compatUnits = getCompatibleUnits(sp.formula || '', activeUnits);
+                return (
                 <div className="ml-2 space-y-2 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                  {/* Select existing or create new */}
-                  {namedCalcs.length > 0 && (
-                    <div>
-                      <label className="text-xs font-medium text-gray-500">Calcul existant</label>
-                      <select
-                        value={sp.formulaName && namedCalcs.some(c => c.name === sp.formulaName) ? sp.formulaName : ''}
-                        onChange={(e) => {
-                          const name = e.target.value;
-                          if (!name) {
-                            updateSetpoint(i, { formulaName: '', formula: '', formulaDescription: '', resultLimitation: false, resultMin: 0, resultMax: 100 } as any);
-                            return;
-                          }
-                          const calc = namedCalcs.find(c => c.name === name);
-                          if (calc) {
-                            updateSetpoint(i, {
-                              formulaName: calc.name,
-                              formula: calc.formula,
-                              formulaDescription: calc.description || '',
-                              resultLimitation: calc.resultLimitation || false,
-                              resultMin: calc.resultMin ?? 0,
-                              resultMax: calc.resultMax ?? 100,
-                            } as any);
-                          }
-                        }}
-                        className="w-full mt-1 text-xs border rounded px-2 py-1.5 bg-white"
-                      >
-                        <option value="">-- Nouveau calcul --</option>
-                        {namedCalcs.map(c => (
-                          <option key={c.name} value={c.name}>{c.name}{c.description ? ` (${c.description})` : ''}</option>
-                        ))}
-                      </select>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-medium text-emerald-700">META DATA</div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-gray-400">Compatible:</span>
+                      {compatUnits.length > 0 ? compatUnits.map(u => (
+                        <span key={u} className="text-[9px] px-1 py-0.5 bg-blue-100 text-blue-600 rounded font-medium">{u}</span>
+                      )) : (
+                        <span className="text-[9px] px-1 py-0.5 bg-red-100 text-red-600 rounded font-medium">Aucune</span>
+                      )}
                     </div>
-                  )}
-                  <div className="text-xs font-medium text-emerald-700 mb-1">META DATA</div>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-xs font-medium text-gray-700">Nom <span className="text-red-500">*</span></label>
@@ -247,7 +363,8 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
                     units={recipeUnits}
                   />
                 </div>
-              )}
+                );
+              })()}
             </div>
           );
         })}
@@ -998,7 +1115,7 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
           <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-lg"><X size={20} /></button>
         </div>
         
-        <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
+        <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]" onScroll={() => { setShowVarPopoverIdx(null); setPopoverPos(null); setShowCalcListIdx(null); setCalcListPos(null); }}>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium">Nom du bloc</label>
