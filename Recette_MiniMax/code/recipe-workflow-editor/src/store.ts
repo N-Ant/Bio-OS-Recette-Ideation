@@ -9,7 +9,7 @@ const demoComplexRecipe: Recipe = {
   id: 'demo',
   name: 'Demo-Complex',
   units: [
-    { name: 'L-1', variables: [
+    { name: 'L-1', zone: 'Culture', variables: [
       'pH.Value', 'pH.Setpoint', 'pH.Output',
       'TEMP.Value', 'TEMP.Setpoint', 'TEMP.Output',
       'pO2.Value', 'pO2.Setpoint', 'pO2.Output',
@@ -22,7 +22,7 @@ const demoComplexRecipe: Recipe = {
       'PRESSURE.Value', 'PRESSURE.Setpoint',
       'ProcessTime', 'BatchTime', 'OperationTime'
     ]},
-    { name: 'L-2', variables: [
+    { name: 'L-2', zone: 'Culture', variables: [
       'TEMP.Value', 'TEMP.Setpoint', 'TEMP.Output',
       'pO2.Value', 'pO2.Setpoint', 'pO2.Output',
       'STIRR_1.Value', 'STIRR_1.Setpoint', 'STIRR_1.Output',
@@ -32,11 +32,23 @@ const demoComplexRecipe: Recipe = {
       'PRESSURE.Value', 'PRESSURE.Setpoint',
       'ProcessTime', 'BatchTime', 'OperationTime'
     ]},
-    { name: 'Feed-1', variables: [
+    { name: 'Feed-1', zone: 'Alimentation', variables: [
       'FEED.Value', 'FEED.Setpoint', 'FEED.Output',
       'LEVEL.Value', 'LEVEL.Setpoint',
       'PRESSURE.Value', 'PRESSURE.Setpoint',
       'ProcessTime'
+    ]},
+    { name: 'Balance-1', zone: 'Alimentation', variables: [
+      'FEED.Value', 'FEED.Setpoint',
+      'LEVEL.Value', 'LEVEL.Setpoint',
+      'ProcessTime', 'BatchTime'
+    ]},
+    { name: 'Harvest-1', zone: 'Purification', variables: [
+      'TEMP.Value', 'TEMP.Setpoint', 'TEMP.Output',
+      'PRESSURE.Value', 'PRESSURE.Setpoint',
+      'LEVEL.Value', 'LEVEL.Setpoint',
+      'FEED.Value', 'FEED.Setpoint', 'FEED.Output',
+      'ProcessTime', 'BatchTime', 'OperationTime'
     ]},
   ],
   operations: [

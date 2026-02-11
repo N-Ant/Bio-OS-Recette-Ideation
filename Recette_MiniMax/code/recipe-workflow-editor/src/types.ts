@@ -129,6 +129,7 @@ export interface CustomVariable {
 
 export interface RecipeUnit {
   name: string;          // e.g., 'L-1', 'Feed-1', 'Balance-1'
+  zone?: string;         // e.g., 'Zone A', 'Salle Culture', 'Purification'
   variables: string[];   // Variables available on this unit
 }
 
@@ -189,9 +190,37 @@ export const MFCS_VARIABLES = [
   'ProcessTime', 'BatchTime', 'OperationTime'
 ];
 
-// Default unit with all MFCS variables
+// Default units across zones
 export const DEFAULT_UNITS: RecipeUnit[] = [
-  { name: 'L-1', variables: [...MFCS_VARIABLES] }
+  { name: 'L-1', zone: 'Culture', variables: [...MFCS_VARIABLES] },
+  { name: 'L-2', zone: 'Culture', variables: [
+    'pH.Value', 'pH.Setpoint', 'pH.Output',
+    'TEMP.Value', 'TEMP.Setpoint', 'TEMP.Output',
+    'pO2.Value', 'pO2.Setpoint', 'pO2.Output',
+    'STIRR_1.Value', 'STIRR_1.Setpoint', 'STIRR_1.Output',
+    'AIRSP.Value', 'AIRSP.Setpoint', 'AIRSP.Output',
+    'CO2.Value', 'CO2.Setpoint',
+    'GASFL_1.Value', 'GASFL_1.Setpoint', 'GASFL_1.Output',
+    'ProcessTime', 'BatchTime', 'OperationTime'
+  ]},
+  { name: 'Feed-1', zone: 'Alimentation', variables: [
+    'FEED.Value', 'FEED.Setpoint', 'FEED.Output',
+    'LEVEL.Value', 'LEVEL.Setpoint',
+    'PRESSURE.Value', 'PRESSURE.Setpoint',
+    'ProcessTime', 'BatchTime'
+  ]},
+  { name: 'Balance-1', zone: 'Alimentation', variables: [
+    'FEED.Value', 'FEED.Setpoint',
+    'LEVEL.Value', 'LEVEL.Setpoint',
+    'ProcessTime', 'BatchTime'
+  ]},
+  { name: 'Harvest-1', zone: 'Purification', variables: [
+    'TEMP.Value', 'TEMP.Setpoint', 'TEMP.Output',
+    'PRESSURE.Value', 'PRESSURE.Setpoint',
+    'LEVEL.Value', 'LEVEL.Setpoint',
+    'FEED.Value', 'FEED.Setpoint', 'FEED.Output',
+    'ProcessTime', 'BatchTime', 'OperationTime'
+  ]},
 ];
 
 // Given a formula, find which units are compatible (have ALL referenced variables)

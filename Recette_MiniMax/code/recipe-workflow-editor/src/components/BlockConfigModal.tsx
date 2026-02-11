@@ -74,6 +74,8 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
   const [varPopoverSearch, setVarPopoverSearch] = useState('');
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
   const [calcListPos, setCalcListPos] = useState<{ top: number; left: number } | null>(null);
+  const [varZoneFilter, setVarZoneFilter] = useState<string | null>(null);
+  const [varUnitFilter, setVarUnitFilter] = useState<string | null>(null);
 
   const renderParameterConfig = () => {
     const cfg = config as ParameterConfig || { setpoints: [] };
@@ -112,7 +114,7 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
                       else {
                         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                         setPopoverPos({ top: rect.bottom + 2, left: rect.left });
-                        setShowVarPopoverIdx(i); setVarPopoverSearch(''); setShowCalcListIdx(null); setCalcListPos(null);
+                        setShowVarPopoverIdx(i); setVarPopoverSearch(''); setVarZoneFilter(null); setVarUnitFilter(null); setShowCalcListIdx(null); setCalcListPos(null);
                       }
                     }}
                     className="text-sm border rounded px-2 py-1 w-36 text-left bg-white hover:bg-gray-50 truncate"
@@ -124,19 +126,59 @@ export default function BlockConfigModal({ block, blocks = [], connections = [],
                       className="w-72 bg-white border border-gray-200 rounded-lg shadow-xl p-2"
                       style={{ position: 'fixed', zIndex: 9999, top: popoverPos.top, left: popoverPos.left, maxHeight: `${window.innerHeight - popoverPos.top - 8}px` }}
                     >
-                      <div className="flex items-center gap-1 mb-2 border rounded px-2 py-1 bg-gray-50">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                        <input
-                          value={varPopoverSearch}
-                          onChange={(e) => setVarPopoverSearch(e.target.value)}
-                          placeholder="Rechercher..."
-                          className="flex-1 text-xs bg-transparent outline-none"
-                          autoFocus
-                        />
-                      </div>
+                      {(() => {
+                        const zones = Array.from(new Set(activeUnits.map(u => u.zone).filter(Boolean))) as string[];
+                        const hasZones = zones.length > 0;
+                        const filteredUnits = varZoneFilter ? activeUnits.filter(u => u.zone === varZoneFilter) : activeUnits;
+                        return (
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            {/* Search */}
+                            <div className="flex items-center gap-1 flex-1 border rounded px-2 py-1 bg-gray-50 min-w-0">
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 flex-shrink-0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                              <input
+                                value={varPopoverSearch}
+                                onChange={(e) => setVarPopoverSearch(e.target.value)}
+                                placeholder="Rechercher..."
+                                className="flex-1 text-xs bg-transparent outline-none min-w-0"
+                                autoFocus
+                              />
+                            </div>
+                            {/* Zone select */}
+                            {hasZones && (
+                              <select
+                                value={varZoneFilter || ''}
+                                onChange={(e) => { setVarZoneFilter(e.target.value || null); setVarUnitFilter(null); }}
+                                className="text-[10px] border rounded px-1 py-1 bg-indigo-50 text-indigo-700 font-medium cursor-pointer"
+                              >
+                                <option value="">Zones</option>
+                                {zones.map(z => <option key={z} value={z}>{z}</option>)}
+                              </select>
+                            )}
+                            {/* Unit select */}
+                            {filteredUnits.length > 1 && (
+                              <select
+                                value={varUnitFilter || ''}
+                                onChange={(e) => setVarUnitFilter(e.target.value || null)}
+                                className="text-[10px] border rounded px-1 py-1 bg-blue-50 text-blue-700 font-medium cursor-pointer"
+                              >
+                                <option value="">Unités</option>
+                                {filteredUnits.map(u => <option key={u.name} value={u.name}>{u.name}</option>)}
+                              </select>
+                            )}
+                          </div>
+                        );
+                      })()}
                       <div className="max-h-56 overflow-y-auto space-y-0.5">
-                        {allMfcsVars
-                          .filter(v => v.toLowerCase().includes(varPopoverSearch.toLowerCase()))
+                        {(() => {
+                          // Build filtered unit set based on zone + unit filters
+                          let targetUnits = activeUnits;
+                          if (varZoneFilter) targetUnits = targetUnits.filter(u => u.zone === varZoneFilter);
+                          if (varUnitFilter) targetUnits = targetUnits.filter(u => u.name === varUnitFilter);
+                          const filteredVarSet = new Set(targetUnits.flatMap(u => u.variables));
+                          return allMfcsVars
+                            .filter(v => filteredVarSet.has(v))
+                            .filter(v => v.toLowerCase().includes(varPopoverSearch.toLowerCase()));
+                        })()
                           .map(v => {
                             const presentIn = varToUnits(v);
                             return (
