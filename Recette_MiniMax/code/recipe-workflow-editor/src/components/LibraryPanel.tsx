@@ -176,6 +176,15 @@ export default function LibraryPanel() {
         </button>
       </div>
 
+      {/* Collapsed: summary */}
+      {isCollapsed && (
+        <div className="px-4 pb-3">
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl">
+            <span className="text-sm text-gray-500">{phases.length} blocs disponibles</span>
+          </div>
+        </div>
+      )}
+
       {!isCollapsed && (
         <>
           {/* Phase Items */}

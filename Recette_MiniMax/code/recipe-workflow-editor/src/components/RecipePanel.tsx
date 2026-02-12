@@ -49,8 +49,10 @@ export default function RecipePanel() {
     }
   };
 
+  const selectedRecipe = recipes.find(r => r.id === selectedRecipeId);
+
   return (
-    <div className={`bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden ${isCollapsed ? 'w-auto' : 'w-48 lg:w-64 max-h-[calc(100vh-140px)]'}`}>
+    <div className="bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden w-48 lg:w-64 max-h-[calc(100vh-140px)]">
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -60,14 +62,24 @@ export default function RecipePanel() {
           </svg>
           <span className="text-base font-medium text-gray-800">Recette</span>
         </div>
-        <button 
+        <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded-md hover:bg-gray-50"
         >
           <Minus size={14} className={`text-gray-500 transition-transform ${isCollapsed ? 'rotate-90' : ''}`} />
         </button>
       </div>
-      
+
+      {/* Collapsed: show selected recipe */}
+      {isCollapsed && selectedRecipe && (
+        <div className="px-4 pb-3">
+          <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl">
+            <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+            <span className="text-sm font-medium text-blue-700 truncate">{selectedRecipe.name}</span>
+          </div>
+        </div>
+      )}
+
       {!isCollapsed && (
         <>
           {/* New Recipe Button */}

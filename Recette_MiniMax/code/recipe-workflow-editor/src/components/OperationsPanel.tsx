@@ -82,7 +82,7 @@ export default function OperationsPanel() {
   }));
 
   return (
-    <div className={`bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden ${isCollapsed ? 'w-auto' : 'w-44 lg:w-56 max-h-[calc(100vh-140px)]'}`}>
+    <div className="bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden w-44 lg:w-56 max-h-[calc(100vh-140px)]">
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between">
         <span className="text-base font-medium text-gray-800">Operation</span>
@@ -93,6 +93,23 @@ export default function OperationsPanel() {
           <Minus size={14} className={`text-gray-500 transition-transform ${isCollapsed ? 'rotate-90' : ''}`} />
         </button>
       </div>
+
+      {/* Collapsed: show selected operation */}
+      {isCollapsed && (() => {
+        const selectedOp = operations.find(o => o.id === selectedOperationId);
+        const selectedIdx = operations.findIndex(o => o.id === selectedOperationId);
+        if (!selectedOp) return null;
+        return (
+          <div className="px-4 pb-3">
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl">
+              <div className="w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                {selectedIdx + 1}
+              </div>
+              <span className="text-sm font-medium text-blue-700 truncate">{selectedOp.name}</span>
+            </div>
+          </div>
+        );
+      })()}
 
       {!isCollapsed && (
         <>
