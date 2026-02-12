@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Recipe, Block, Connection, Operation, PhaseType, CustomVariable, ParameterConfig } from './types';
+import type { OperationTemplate } from './data/operationTemplates';
+import { instantiateTemplate, operationToTemplate } from './lib/templateUtils';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -118,6 +120,7 @@ const defaultRecipes: Recipe[] = [
 
 interface StoreState {
   recipes: Recipe[];
+  userTemplates: OperationTemplate[];
   selectedRecipeId: string | null;
   selectedBlockId: string | null;
   selectedOperationId: string | null;
@@ -131,6 +134,9 @@ interface StoreState {
   renameRecipe: (id: string, name: string) => void;
   importRecipe: (recipe: Recipe) => void;
   addOperation: (name: string) => void;
+  addOperationFromTemplate: (template: OperationTemplate) => void;
+  saveOperationAsTemplate: (operationId: string) => void;
+  deleteUserTemplate: (templateId: string) => void;
   deleteOperation: (id: string) => void;
   moveOperation: (id: string, direction: 'up' | 'down') => void;
   selectOperation: (id: string) => void;
@@ -222,6 +228,7 @@ export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
       recipes: defaultRecipes,
+      userTemplates: [],
       selectedRecipeId: 'demo',
       selectedBlockId: null,
       selectedOperationId: 'op1',
@@ -280,7 +287,29 @@ export const useStore = create<StoreState>()(
           selectedOperationId: newOp.id,
         };
       }),
-      
+
+      addOperationFromTemplate: (template) => set((state) => {
+        const recipe = state.recipes.find((r) => r.id === state.selectedRecipeId);
+        if (!recipe) return state;
+        const newOp = instantiateTemplate(template, recipe.operations.length + 1);
+        return {
+          recipes: state.recipes.map((r) => r.id === state.selectedRecipeId ? { ...r, operations: [...r.operations, newOp] } : r),
+          selectedOperationId: newOp.id,
+        };
+      }),
+
+      saveOperationAsTemplate: (operationId) => set((state) => {
+        const recipe = state.recipes.find((r) => r.id === state.selectedRecipeId);
+        const operation = recipe?.operations.find((o) => o.id === operationId);
+        if (!operation) return state;
+        const template = operationToTemplate(operation);
+        return { userTemplates: [...state.userTemplates, template] };
+      }),
+
+      deleteUserTemplate: (templateId) => set((state) => ({
+        userTemplates: state.userTemplates.filter((t) => t.id !== templateId),
+      })),
+
       deleteOperation: (id) => set((state) => {
         const recipe = state.recipes.find(r => r.id === state.selectedRecipeId);
         const remainingOps = recipe?.operations.filter(o => o.id !== id) || [];
@@ -447,6 +476,7 @@ export const useStore = create<StoreState>()(
       name: 'recipe-workflow-storage-v6',
       partialize: (state) => ({
         recipes: state.recipes,
+        userTemplates: state.userTemplates,
         selectedRecipeId: state.selectedRecipeId,
         selectedOperationId: state.selectedOperationId,
       }),
